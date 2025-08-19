@@ -1,0 +1,53 @@
+{
+	"schemaVersion": 1,
+	"id": "connectedtank",
+	"version": "${version}",
+	"name": "ConnectedTank",
+	"description": "This is an example description! Tell everyone what your mod is about!",
+	"authors": [
+		"turtton"
+	],
+	"contact": {
+		"sources": "https://github.com/turtton/ConnectedTank"
+	},
+	"license": "MIT",
+	"icon": "assets/connectedtank/icon.png",
+	"environment": "*",
+	"entrypoints": {
+		"main": [
+			{
+				"value": "net.turtton.connectedtank.ConnectedTank",
+				"adapter": "kotlin"
+			}
+		],
+		"client": [
+			{
+				"value": "net.turtton.connectedtank.ConnectedTankClient",
+				"adapter": "kotlin"
+			}
+		],
+		"fabric-datagen": [
+			{
+				"value": "net.turtton.connectedtank.ConnectedTankDataGenerator",
+				"adapter": "kotlin"
+			}
+		]
+	},
+	"mixins": [
+		"connectedtank.mixins.json",
+		{
+			"config": "connectedtank.client.mixins.json",
+			"environment": "client"
+		}
+	],
+	"depends": {
+		"fabricloader": ">=0.17.2",
+		"minecraft": "~1.21.8",
+		"java": ">=21",
+		"fabric-api": "*",
+		"fabric-language-kotlin": "*"
+	},
+	"suggests": {
+		"another-mod": "*"
+	}
+}
