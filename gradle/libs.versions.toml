@@ -6,6 +6,7 @@ loom = "1.11-SNAPSHOT"
 fabric-kotlin = "1.13.5+kotlin.2.2.10"
 fabric-api = "0.132.0+1.21.8"
 kotlin = "2.2.10"
+spotless = "7.2.1"
 
 mod-version = "1.0.0"
 
@@ -19,3 +20,4 @@ fabric-language-kotlin = { module = "net.fabricmc:fabric-language-kotlin", versi
 [plugins]
 fabric-loom = { id = "fabric-loom", version.ref = "loom" }
 kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
+spotless = { id = "com.diffplug.spotless", version.ref = "spotless" }

@@ -8,8 +8,8 @@ import org.slf4j.LoggerFactory
 object ConnectedTank : ModInitializer {
     private val logger = LoggerFactory.getLogger("connectedtank")
 
-	override fun onInitialize() {
+    override fun onInitialize() {
         CTBlocks.init()
         CTItems.init()
-	}
+    }
 }

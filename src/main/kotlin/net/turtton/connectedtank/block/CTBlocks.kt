@@ -14,7 +14,7 @@ object CTBlocks {
     private fun register(
         name: String,
         factory: (AbstractBlock.Settings) -> Block,
-        settingsFactory: AbstractBlock.Settings.() -> Unit = {}
+        settingsFactory: AbstractBlock.Settings.() -> Unit = {},
     ): Block {
         val blockKey = RegistryKey.of(RegistryKeys.BLOCK, ModIdentifier(name))
         val settings = AbstractBlock.Settings.create().apply(settingsFactory)

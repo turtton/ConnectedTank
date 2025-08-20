@@ -15,7 +15,7 @@ object CTItems {
     private fun <I : Item> register(
         name: String,
         factory: (Item.Settings) -> I,
-        settingsFactory: Item.Settings.() -> Unit = {}
+        settingsFactory: Item.Settings.() -> Unit = {},
     ): I {
         val itemKey = RegistryKey.of(RegistryKeys.ITEM, ModIdentifier(name))
         val settings = Item.Settings().apply(settingsFactory)
