@@ -50,22 +50,34 @@ dependencies {
     modImplementation(libs.fabric.language.kotlin)
 }
 
-tasks.processResources {
-    inputs.property("version", project.version)
+tasks {
+    processResources {
+        inputs.property("version", project.version)
 
-    filesMatching("fabric.mod.json") {
-        expand("version" to inputs.properties["version"])
+        filesMatching("fabric.mod.json") {
+            expand("version" to inputs.properties["version"])
+        }
     }
-}
+    jar {
+        inputs.property("archivesName", base.archivesName)
 
-tasks.withType<JavaCompile>().configureEach {
-    options.release.set(21)
+        from("LICENSE") {
+            rename { "${it}_${inputs.properties["archivesName"]}" }
+        }
+    }
+    withType<JavaCompile>().configureEach {
+        options.release.set(21)
+    }
+    named<UpdateDaemonJvm>("updateDaemonJvm") {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
 }
 
 kotlin {
     compilerOptions {
         jvmTarget = JvmTarget.JVM_21
     }
+    jvmToolchain(21)
 }
 
 java {
@@ -76,14 +88,6 @@ java {
 
     sourceCompatibility = JavaVersion.VERSION_21
     targetCompatibility = JavaVersion.VERSION_21
-}
-
-tasks.jar {
-    inputs.property("archivesName", base.archivesName)
-
-    from("LICENSE") {
-        rename { "${it}_${inputs.properties["archivesName"]}" }
-    }
 }
 
 spotless {
