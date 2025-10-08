@@ -1,8 +1,6 @@
 package net.turtton.connectedtank.block
 
-import net.fabricmc.fabric.api.transfer.v1.context.ContainerItemContext
-import net.fabricmc.fabric.api.transfer.v1.fluid.FluidStorage
-import net.fabricmc.fabric.api.transfer.v1.transaction.Transaction
+import net.fabricmc.fabric.api.transfer.v1.fluid.FluidStorageUtil
 import net.minecraft.block.Block
 import net.minecraft.block.BlockState
 import net.minecraft.entity.LivingEntity
@@ -36,18 +34,12 @@ class ConnectedTankBlock(settings: Settings) : Block(settings) {
         if (world !is ServerWorld) return ActionResult.SUCCESS
         if (pos == null) return ActionResult.PASS_TO_DEFAULT_BLOCK_ACTION
 
-        val handContext = ContainerItemContext.ofPlayerHand(player, hand)
-        val handStorage = handContext.find(FluidStorage.ITEM)
-        if (handStorage != null) {
-            val tankStorage = world.persistentStateManager.getOrCreate(FluidStoragePersistentState.TYPE).getStorage(pos) ?: return ActionResult.PASS_TO_DEFAULT_BLOCK_ACTION
-
-            val targetVariant = tankStorage.variant.takeIf { !it.isBlank } ?: handStorage.firstOrNull()?.resource ?: return ActionResult.PASS_TO_DEFAULT_BLOCK_ACTION
-            Transaction.openOuter().use { transaction ->
-                val extractedAmount = handStorage.extract(targetVariant, tankStorage.capacity - tankStorage.amount, transaction)
-                tankStorage.insert(targetVariant, extractedAmount, transaction)
-                transaction.commit()
-            }
+        val tankStorage = world.persistentStateManager.getOrCreate(FluidStoragePersistentState.TYPE).getStorage(pos) ?: return ActionResult.PASS_TO_DEFAULT_BLOCK_ACTION
+        val result = FluidStorageUtil.interactWithFluidStorage(tankStorage, player, hand)
+        return if (result) {
+            ActionResult.SUCCESS
+        } else {
+            ActionResult.PASS_TO_DEFAULT_BLOCK_ACTION
         }
-        return ActionResult.SUCCESS
     }
 }
