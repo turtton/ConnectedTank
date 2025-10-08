@@ -11,9 +11,12 @@ import net.turtton.connectedtank.MOD_ID
 import net.turtton.connectedtank.block.TankFluidStorage
 
 class FluidStoragePersistentState(
-    val positionalStorageMap: MutableMap<BlockPos, UUID> = mutableMapOf(),
-    val storageMap: MutableMap<UUID, TankFluidStorage> = mutableMapOf(),
+    positionalStorageMap: Map<BlockPos, UUID> = mapOf(),
+    storageMap: Map<UUID, TankFluidStorage> = mapOf(),
 ) : PersistentState() {
+    private val positionalStorageMap: MutableMap<BlockPos, UUID> = positionalStorageMap.toMutableMap()
+    private val storageMap: MutableMap<UUID, TankFluidStorage> = storageMap.toMutableMap()
+
     fun getStorage(pos: BlockPos): TankFluidStorage? = positionalStorageMap[pos]?.let(storageMap::get)
 
     fun addStorage(pos: BlockPos, storage: TankFluidStorage) {
