@@ -23,6 +23,7 @@ class FluidStoragePersistentState(
         val uuid = UUID.randomUUID()
         positionalStorageMap[pos] = uuid
         storageMap[uuid] = storage
+        markDirty()
     }
 
     fun removeStorage(pos: BlockPos) {
@@ -30,6 +31,7 @@ class FluidStoragePersistentState(
         val uuid = positionalStorageMap.remove(pos)
         if (uuid != null) {
             storageMap.remove(uuid)
+            markDirty()
         }
     }
 
