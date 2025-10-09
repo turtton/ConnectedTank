@@ -7,10 +7,9 @@ import kotlin.jvm.optionals.getOrNull
 import net.fabricmc.fabric.api.transfer.v1.fluid.FluidConstants
 import net.fabricmc.fabric.api.transfer.v1.fluid.FluidVariant
 import net.fabricmc.fabric.api.transfer.v1.storage.base.SingleVariantStorage
-import net.turtton.connectedtank.extension.toKotlinPairCodec
 
-class TankFluidStorage(val bucketCapacity: Int = 32, fluid: Pair<FluidVariant, Long>? = null) : SingleVariantStorage<FluidVariant>() {
-    constructor(bucketCapacity: Int, fluid: Optional<Pair<FluidVariant, Long>>) : this(bucketCapacity, fluid.getOrNull())
+class TankFluidStorage(val bucketCapacity: Int = 32, fluid: ExistingData? = null) : SingleVariantStorage<FluidVariant>() {
+    constructor(bucketCapacity: Int, fluid: Optional<ExistingData>) : this(bucketCapacity, fluid.getOrNull())
 
     init {
         if (fluid != null) {
@@ -22,19 +21,30 @@ class TankFluidStorage(val bucketCapacity: Int = 32, fluid: Pair<FluidVariant, L
 
     override fun getBlankVariant(): FluidVariant = FluidVariant.blank()
 
-    override fun getCapacity(variant: FluidVariant?): Long = bucketCapacity * FluidConstants.BUCKET / 81
+    override fun getCapacity(variant: FluidVariant?): Long = bucketCapacity * FluidConstants.BUCKET
 
     override fun onFinalCommit() {
         // TODO()
+    }
+
+    data class ExistingData(val variant: FluidVariant, val amount: Long) {
+        companion object {
+            val CODEC: Codec<ExistingData> = RecordCodecBuilder.create {
+                it.group(
+                    FluidVariant.CODEC.fieldOf("variant").forGetter(ExistingData::variant),
+                    Codec.LONG.fieldOf("amount").forGetter(ExistingData::amount),
+                ).apply(it, ::ExistingData)
+            }
+
+            fun optional(storage: TankFluidStorage): Optional<ExistingData> = if (storage.variant.isBlank) Optional.empty() else Optional.of(ExistingData(storage.variant, storage.amount))
+        }
     }
 
     companion object {
         val CODEC: Codec<TankFluidStorage> = RecordCodecBuilder.create { instance ->
             instance.group(
                 Codec.INT.fieldOf("size").forGetter(TankFluidStorage::bucketCapacity),
-                Codec.pair(FluidVariant.CODEC, Codec.LONG).toKotlinPairCodec().optionalFieldOf("fluid").forGetter {
-                    if (it.variant.isBlank) Optional.empty() else Optional.of(Pair(it.variant, it.amount))
-                },
+                ExistingData.CODEC.optionalFieldOf("fluid").forGetter(ExistingData::optional),
             ).apply(instance, ::TankFluidStorage)
         }
     }
