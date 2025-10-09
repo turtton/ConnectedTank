@@ -39,12 +39,28 @@ class FluidStoragePersistentState(
         TODO()
     }
 
+    private data class PositionalStorageEntry(val pos: BlockPos, val id: UUID) {
+        companion object {
+            val CODEC: Codec<PositionalStorageEntry> = RecordCodecBuilder.create {
+                it.group(
+                    BlockPos.CODEC.fieldOf("pos").forGetter(PositionalStorageEntry::pos),
+                    Uuids.CODEC.fieldOf("id").forGetter(PositionalStorageEntry::id),
+                ).apply(it, ::PositionalStorageEntry)
+            }
+
+            val MAP_CODEC: Codec<Map<BlockPos, UUID>> = CODEC.listOf()
+                .xmap(
+                    { it.associate { (pos, id) -> pos to id } },
+                    { it.entries.map { (pos, id) -> PositionalStorageEntry(pos, id) } },
+                )
+        }
+    }
+
     companion object {
         val CODEC: Codec<FluidStoragePersistentState> = RecordCodecBuilder.create {
             it.group(
-                Codec.unboundedMap(BlockPos.CODEC, Uuids.CODEC).fieldOf("positionalStorageMap").forGetter(FluidStoragePersistentState::positionalStorageMap),
+                PositionalStorageEntry.MAP_CODEC.fieldOf("positionalStorageMap").forGetter(FluidStoragePersistentState::positionalStorageMap),
                 Codec.unboundedMap(Uuids.CODEC, TankFluidStorage.CODEC).fieldOf("storageMap").forGetter(FluidStoragePersistentState::storageMap),
-                // FIXME: codec creates immutable map
             ).apply(it, ::FluidStoragePersistentState)
         }
         val TYPE: PersistentStateType<FluidStoragePersistentState> = PersistentStateType(MOD_ID, ::FluidStoragePersistentState, CODEC, null)
