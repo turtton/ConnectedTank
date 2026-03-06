@@ -1,7 +1,10 @@
 package net.turtton.connectedtank.block
 
 import java.util.concurrent.ConcurrentHashMap
+import net.fabricmc.fabric.api.transfer.v1.fluid.FluidConstants
 import net.fabricmc.fabric.api.transfer.v1.fluid.FluidStorageUtil
+import net.fabricmc.fabric.api.transfer.v1.fluid.FluidVariantAttributes
+import net.fabricmc.loader.api.FabricLoader
 import net.minecraft.block.Block
 import net.minecraft.block.BlockState
 import net.minecraft.entity.LivingEntity
@@ -10,6 +13,7 @@ import net.minecraft.item.ItemStack
 import net.minecraft.loot.context.LootContextParameters
 import net.minecraft.loot.context.LootWorldContext
 import net.minecraft.server.world.ServerWorld
+import net.minecraft.text.Text
 import net.minecraft.util.ActionResult
 import net.minecraft.util.Hand
 import net.minecraft.util.hit.BlockHitResult
@@ -75,6 +79,24 @@ class ConnectedTankBlock(settings: Settings) : Block(settings) {
             }
             storage.addStorage(pos, tankStorage)
         }
+    }
+
+    override fun onUse(state: BlockState, world: World, pos: BlockPos, player: PlayerEntity, hit: BlockHitResult): ActionResult {
+        if (!FabricLoader.getInstance().isDevelopmentEnvironment) return ActionResult.PASS
+        if (world !is ServerWorld) return ActionResult.SUCCESS
+
+        val storage = world.persistentStateManager.getOrCreate(FluidStoragePersistentState.TYPE)
+        val tankStorage = storage.getStorage(pos)
+        if (tankStorage == null) {
+            player.sendMessage(Text.literal("No storage"), true)
+            return ActionResult.SUCCESS
+        }
+
+        val fluidName = if (tankStorage.isResourceBlank) "Empty" else FluidVariantAttributes.getName(tankStorage.variant).string
+        val buckets = tankStorage.amount.toDouble() / FluidConstants.BUCKET
+        val capacity = tankStorage.bucketCapacity
+        player.sendMessage(Text.literal("$fluidName: %.2f / %d buckets".format(buckets, capacity)), true)
+        return ActionResult.SUCCESS
     }
 
     override fun onUseWithItem(stack: ItemStack?, state: BlockState?, world: World?, pos: BlockPos?, player: PlayerEntity?, hand: Hand?, hit: BlockHitResult?): ActionResult? {
