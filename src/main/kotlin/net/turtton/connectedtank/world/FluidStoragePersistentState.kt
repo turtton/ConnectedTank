@@ -35,7 +35,8 @@ class FluidStoragePersistentState(
         val existingStorage = storageId?.let(storageMap::get)
         if (existingStorage != null && (storage.isResourceBlank || storage.variant == existingStorage.variant)) {
             val newBucketCap = storage.bucketCapacity + existingStorage.bucketCapacity
-            val existingData = TankFluidStorage.ExistingData(existingStorage.variant, existingStorage.amount)
+            val mergedAmount = (existingStorage.amount + storage.amount).coerceAtMost(newBucketCap.toLong() * FluidConstants.BUCKET)
+            val existingData = TankFluidStorage.ExistingData(existingStorage.variant, mergedAmount)
             val newStorage = TankFluidStorage(newBucketCap, existingData).also { it.onChanged = ::markDirty }
             storageMap[storageId] = newStorage
             positionalStorageMap[pos] = storageId
@@ -91,6 +92,6 @@ class FluidStoragePersistentState(
                 Codec.unboundedMap(Uuids.CODEC, TankFluidStorage.CODEC).fieldOf("storageMap").forGetter(FluidStoragePersistentState::storageMap),
             ).apply(it, ::FluidStoragePersistentState)
         }
-        val TYPE: PersistentStateType<FluidStoragePersistentState> = PersistentStateType(MOD_ID, ::FluidStoragePersistentState, CODEC, null)
+        val TYPE: PersistentStateType<FluidStoragePersistentState> = PersistentStateType("${MOD_ID}_fluid_storage", ::FluidStoragePersistentState, CODEC, null)
     }
 }

@@ -15,12 +15,10 @@ import net.minecraft.world.World
 import net.turtton.connectedtank.world.FluidStoragePersistentState
 
 class ConnectedTankBlock(settings: Settings) : Block(settings) {
-    override fun onBreak(world: World?, pos: BlockPos?, state: BlockState?, player: PlayerEntity?): BlockState? {
-        if (world is ServerWorld && pos != null) {
-            val storage = world.persistentStateManager.getOrCreate(FluidStoragePersistentState.TYPE)
-            storage.removeStorage(pos)
-        }
-        return super.onBreak(world, pos, state, player)
+    override fun onStateReplaced(state: BlockState, world: ServerWorld, pos: BlockPos, moved: Boolean) {
+        val storage = world.persistentStateManager.getOrCreate(FluidStoragePersistentState.TYPE)
+        storage.removeStorage(pos)
+        super.onStateReplaced(state, world, pos, moved)
     }
 
     override fun onPlaced(world: World?, pos: BlockPos?, state: BlockState?, placer: LivingEntity?, itemStack: ItemStack?) {
