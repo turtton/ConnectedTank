@@ -20,6 +20,19 @@ repositories {
     // Loom adds the essential maven repositories to download Minecraft and libraries from automatically.
     // See https://docs.gradle.org/current/userguide/declaring_repositories.html
     // for more information about repositories.
+    maven { url = uri("https://maven.shedaniel.me") }
+
+    exclusiveContent {
+        forRepository {
+            maven {
+                name = "Modrinth"
+                url = uri("https://api.modrinth.com/maven")
+            }
+        }
+        filter {
+            includeGroup("maven.modrinth")
+        }
+    }
 }
 
 loom {
@@ -37,6 +50,16 @@ fabricApi {
     configureDataGeneration {
         client = true
     }
+    configureTests {
+        createSourceSet = true
+        modId = "connectedtank-test"
+        enableGameTests = true
+        eula = true
+    }
+}
+
+sourceSets.named("gametest") {
+    kotlin.srcDir("src/gametest/kotlin")
 }
 
 dependencies {
@@ -48,6 +71,9 @@ dependencies {
     // Fabric API. This is technically optional, but you probably want it anyway.
     modImplementation(libs.fabric.api)
     modImplementation(libs.fabric.language.kotlin)
+
+    modRuntimeOnly(libs.rei)
+    modRuntimeOnly(libs.jade)
 }
 
 tasks {

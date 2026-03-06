@@ -6,7 +6,7 @@ import net.turtton.connectedtank.item.CTItems
 import org.slf4j.LoggerFactory
 
 object ConnectedTank : ModInitializer {
-    private val logger = LoggerFactory.getLogger("connectedtank")
+    val logger = LoggerFactory.getLogger("connectedtank")
 
     override fun onInitialize() {
         CTBlocks.init()

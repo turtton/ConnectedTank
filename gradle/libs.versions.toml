@@ -10,12 +10,18 @@ spotless = "7.2.1"
 
 mod-version = "1.0.0"
 
+rei = "20.0.811"
+jade = "19.3.2+fabric"
+
 [libraries]
 minecraft = { module = "com.mojang:minecraft", version.ref = "minecraft" }
 yarn-mappings = { module = "net.fabricmc:yarn", version.ref = "yarn-mappings" }
 fabric-loader = { module = "net.fabricmc:fabric-loader", version.ref = "loader" }
 fabric-api = { module = "net.fabricmc.fabric-api:fabric-api", version.ref = "fabric-api" }
 fabric-language-kotlin = { module = "net.fabricmc:fabric-language-kotlin", version.ref = "fabric-kotlin" }
+
+rei = { module = "me.shedaniel:RoughlyEnoughItems-fabric", version.ref = "rei" }
+jade = { module = "maven.modrinth:jade", version.ref = "jade" }
 
 [plugins]
 fabric-loom = { id = "fabric-loom", version.ref = "loom" }
