@@ -69,15 +69,19 @@ class FluidStoragePersistentState(
         val existingData = mergedVariant?.let { TankFluidStorage.ExistingData(it, totalAmount) }
         val mergedStorage = TankFluidStorage(totalBucketCap, existingData).also { it.onChanged = ::markDirty }
 
-        // 全グループを primaryId にリマップ
-        for ((oldId, _) in neighborStorages) {
-            if (oldId != primaryId) {
-                storageMap.remove(oldId)
-                for ((p, id) in positionalStorageMap) {
-                    if (id == oldId) {
-                        positionalStorageMap[p] = primaryId
-                    }
+        // 全グループを primaryId にリマップ（単一パス）
+        val idsToMerge = neighborStorages
+            .map { (id, _) -> id }
+            .filter { it != primaryId }
+            .toSet()
+        if (idsToMerge.isNotEmpty()) {
+            for ((p, id) in positionalStorageMap) {
+                if (id in idsToMerge) {
+                    positionalStorageMap[p] = primaryId
                 }
+            }
+            for (oldId in idsToMerge) {
+                storageMap.remove(oldId)
             }
         }
         storageMap[primaryId] = mergedStorage
