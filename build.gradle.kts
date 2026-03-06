@@ -50,6 +50,16 @@ fabricApi {
     configureDataGeneration {
         client = true
     }
+    configureTests {
+        createSourceSet = true
+        modId = "connectedtank-test"
+        enableGameTests = true
+        eula = true
+    }
+}
+
+sourceSets.named("gametest") {
+    kotlin.srcDir("src/gametest/kotlin")
 }
 
 dependencies {
