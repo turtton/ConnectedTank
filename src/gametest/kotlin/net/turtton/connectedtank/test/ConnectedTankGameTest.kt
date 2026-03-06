@@ -152,6 +152,108 @@ object ConnectedTankGameTest {
     }
 
     @GameTest
+    fun placesBetweenTwoGroupsMergesThem(context: TestContext) {
+        // [Group A] [gap] [Group B] → [Group A] [New Tank] [Group B] → 1 group
+        val posA = BlockPos(0, 2, 0)
+        val posB = BlockPos(2, 2, 0)
+        val posMid = BlockPos(1, 2, 0)
+        context.placeTank(posA)
+        context.placeTank(posB)
+
+        val state = context.getFluidState()
+        val storageA = state.getStorage(context.getAbsolutePos(posA))
+        val storageB = state.getStorage(context.getAbsolutePos(posB))
+        context.assertTrue(storageA !== storageB, Text.literal("Groups should be separate before merge"))
+
+        context.placeTank(posMid)
+
+        val sA = state.getStorage(context.getAbsolutePos(posA))
+        val sMid = state.getStorage(context.getAbsolutePos(posMid))
+        val sB = state.getStorage(context.getAbsolutePos(posB))
+        context.assertTrue(sA != null, Text.literal("Storage A should exist"))
+        context.assertTrue(sA === sMid, Text.literal("A and Mid should share storage"))
+        context.assertTrue(sA === sB, Text.literal("A and B should share storage after merge"))
+        context.assertTrue(
+            sA!!.bucketCapacity == 96,
+            Text.literal("Merged capacity should be 96 buckets but was ${sA.bucketCapacity}"),
+        )
+        context.complete()
+    }
+
+    @GameTest
+    fun mergeGroupsPreservesFluidAmount(context: TestContext) {
+        val posA = BlockPos(0, 2, 0)
+        val posB = BlockPos(2, 2, 0)
+        context.placeTank(posA)
+        context.placeTank(posB)
+
+        val state = context.getFluidState()
+        val water = FluidVariant.of(Fluids.WATER)
+
+        // 両グループに水を入れる
+        val storageA = state.getStorage(context.getAbsolutePos(posA))!!
+        Transaction.openOuter().use { transaction ->
+            storageA.insert(water, FluidConstants.BUCKET * 2, transaction)
+            transaction.commit()
+        }
+        val storageB = state.getStorage(context.getAbsolutePos(posB))!!
+        Transaction.openOuter().use { transaction ->
+            storageB.insert(water, FluidConstants.BUCKET * 3, transaction)
+            transaction.commit()
+        }
+
+        // 間にタンクを置いてマージ
+        val posMid = BlockPos(1, 2, 0)
+        context.placeTank(posMid)
+
+        val merged = state.getStorage(context.getAbsolutePos(posA))!!
+        context.assertTrue(
+            merged.amount == FluidConstants.BUCKET * 5,
+            Text.literal("Merged amount should be 5 buckets but was ${merged.amount / FluidConstants.BUCKET}"),
+        )
+        context.assertTrue(merged.variant == water, Text.literal("Merged variant should be water"))
+        context.complete()
+    }
+
+    @GameTest
+    fun incompatibleGroupsDoNotMerge(context: TestContext) {
+        val posA = BlockPos(0, 2, 0)
+        val posB = BlockPos(2, 2, 0)
+        context.placeTank(posA)
+
+        val state = context.getFluidState()
+        val water = FluidVariant.of(Fluids.WATER)
+        val lava = FluidVariant.of(Fluids.LAVA)
+
+        // A に水を入れる
+        val storageA = state.getStorage(context.getAbsolutePos(posA))!!
+        Transaction.openOuter().use { transaction ->
+            storageA.insert(water, FluidConstants.BUCKET, transaction)
+            transaction.commit()
+        }
+
+        // B にラバを直接追加
+        val lavaStorage = TankFluidStorage(
+            32,
+            TankFluidStorage.ExistingData(lava, FluidConstants.BUCKET),
+        )
+        state.addStorage(context.getAbsolutePos(posB), lavaStorage)
+
+        // 間にタンクを置く → マージ不可、独立グループになるべき
+        val posMid = BlockPos(1, 2, 0)
+        context.placeTank(posMid)
+
+        val sA = state.getStorage(context.getAbsolutePos(posA))
+        val sMid = state.getStorage(context.getAbsolutePos(posMid))
+        val sB = state.getStorage(context.getAbsolutePos(posB))
+        context.assertTrue(sA !== sMid, Text.literal("Water group should not merge with middle"))
+        context.assertTrue(sB !== sMid, Text.literal("Lava group should not merge with middle"))
+        context.assertTrue(sA!!.variant == water, Text.literal("A should still have water"))
+        context.assertTrue(sB!!.variant == lava, Text.literal("B should still have lava"))
+        context.complete()
+    }
+
+    @GameTest
     fun differentFluidTanksDoNotMerge(context: TestContext) {
         val pos1 = BlockPos(0, 2, 0)
         context.placeTank(pos1)

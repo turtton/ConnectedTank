@@ -22,29 +22,70 @@ class FluidStoragePersistentState(
         it.onChanged = ::markDirty
     }
 
+    private val adjacentOffsets = listOf(
+        BlockPos(-1, 0, 0),
+        BlockPos(1, 0, 0),
+        BlockPos(0, 0, -1),
+        BlockPos(0, 0, 1),
+        BlockPos(0, -1, 0),
+        BlockPos(0, 1, 0),
+    )
+
     fun addStorage(pos: BlockPos, storage: TankFluidStorage, interactedAt: BlockPos? = null) {
-        val storageId = interactedAt?.let(positionalStorageMap::get)
-            ?: listOf(
-                pos.add(-1, 0, 0),
-                pos.add(1, 0, 0),
-                pos.add(0, 0, -1),
-                pos.add(0, 0, 1),
-                pos.add(0, -1, 0),
-                pos.add(0, 1, 0),
-            ).firstNotNullOfOrNull(positionalStorageMap::get)
-        val existingStorage = storageId?.let(storageMap::get)
-        if (existingStorage != null && (storage.isResourceBlank || storage.variant == existingStorage.variant)) {
-            val newBucketCap = storage.bucketCapacity + existingStorage.bucketCapacity
-            val mergedAmount = (existingStorage.amount + storage.amount).coerceAtMost(newBucketCap.toLong() * FluidConstants.BUCKET)
-            val existingData = TankFluidStorage.ExistingData(existingStorage.variant, mergedAmount)
-            val newStorage = TankFluidStorage(newBucketCap, existingData).also { it.onChanged = ::markDirty }
-            storageMap[storageId] = newStorage
-            positionalStorageMap[pos] = storageId
+        val neighborIds = if (interactedAt != null) {
+            listOfNotNull(positionalStorageMap[interactedAt])
         } else {
+            adjacentOffsets.mapNotNull { positionalStorageMap[pos.add(it)] }.distinct()
+        }
+
+        if (neighborIds.isEmpty()) {
             val uuid = UUID.randomUUID()
             positionalStorageMap[pos] = uuid
             storageMap[uuid] = storage.also { it.onChanged = ::markDirty }
+            markDirty()
+            return
         }
+
+        val neighborStorages = neighborIds.mapNotNull { id -> storageMap[id]?.let { id to it } }
+        val nonBlankVariants = neighborStorages.mapNotNull { (_, s) ->
+            if (s.isResourceBlank) null else s.variant
+        }.distinct()
+        val newVariant = if (!storage.isResourceBlank) storage.variant else null
+        val allVariants = (nonBlankVariants + listOfNotNull(newVariant)).distinct()
+
+        if (allVariants.size > 1) {
+            val uuid = UUID.randomUUID()
+            positionalStorageMap[pos] = uuid
+            storageMap[uuid] = storage.also { it.onChanged = ::markDirty }
+            markDirty()
+            return
+        }
+
+        val primaryId = neighborIds.first()
+        val totalBucketCap = storage.bucketCapacity + neighborStorages.sumOf { (_, s) -> s.bucketCapacity }
+        val totalAmount = (storage.amount + neighborStorages.sumOf { (_, s) -> s.amount })
+            .coerceAtMost(totalBucketCap.toLong() * FluidConstants.BUCKET)
+        val mergedVariant = allVariants.firstOrNull()
+        val existingData = mergedVariant?.let { TankFluidStorage.ExistingData(it, totalAmount) }
+        val mergedStorage = TankFluidStorage(totalBucketCap, existingData).also { it.onChanged = ::markDirty }
+
+        // 全グループを primaryId にリマップ（単一パス）
+        val idsToMerge = neighborStorages
+            .map { (id, _) -> id }
+            .filter { it != primaryId }
+            .toSet()
+        if (idsToMerge.isNotEmpty()) {
+            for ((p, id) in positionalStorageMap) {
+                if (id in idsToMerge) {
+                    positionalStorageMap[p] = primaryId
+                }
+            }
+            for (oldId in idsToMerge) {
+                storageMap.remove(oldId)
+            }
+        }
+        storageMap[primaryId] = mergedStorage
+        positionalStorageMap[pos] = primaryId
 
         markDirty()
     }
