@@ -90,21 +90,126 @@ class FluidStoragePersistentState(
         markDirty()
     }
 
-    fun removeStorage(pos: BlockPos) {
-        val uuid = positionalStorageMap.remove(pos) ?: return
-        val remainingCount = positionalStorageMap.values.count { it == uuid }
-        if (remainingCount == 0) {
-            storageMap.remove(uuid)
+    fun getGroupSize(pos: BlockPos): Int {
+        val uuid = positionalStorageMap[pos] ?: return 0
+        return positionalStorageMap.values.count { it == uuid }
+    }
+
+    fun removeStorage(pos: BlockPos): TankFluidStorage.ExistingData? {
+        val uuid = positionalStorageMap.remove(pos) ?: return null
+        val existing = storageMap[uuid]
+        val variant = existing?.variant
+        val amount = existing?.amount ?: 0L
+
+        val groupPositions = positionalStorageMap.entries
+            .filter { it.value == uuid }
+            .map { it.key }
+
+        val totalTanks = groupPositions.size + 1
+        val perTank = amount / totalTanks
+        val removedShare = perTank + if (amount % totalTanks > 0) 1L else 0L
+        val remainingAmount = amount - removedShare
+
+        val removedData = if (variant != null && !variant.isBlank && removedShare > 0) {
+            TankFluidStorage.ExistingData(variant, removedShare)
         } else {
-            val existing = storageMap[uuid]
-            if (existing != null) {
-                val newBucketCap = existing.bucketCapacity - DEFAULT_BUCKET_CAPACITY
-                val amount = existing.amount.coerceAtMost(newBucketCap.toLong() * FluidConstants.BUCKET)
-                val data = if (existing.isResourceBlank) null else TankFluidStorage.ExistingData(existing.variant, amount)
-                storageMap[uuid] = TankFluidStorage(newBucketCap, data).also { it.onChanged = ::markDirty }
+            null
+        }
+
+        if (groupPositions.isEmpty()) {
+            storageMap.remove(uuid)
+            markDirty()
+            return removedData
+        }
+
+        // BFS で連結成分を検出
+        val components = findConnectedComponents(groupPositions)
+
+        if (components.size == 1) {
+            // 分断なし
+            val newBucketCap = groupPositions.size * DEFAULT_BUCKET_CAPACITY
+            val data = if (variant != null && !variant.isBlank && remainingAmount > 0) {
+                TankFluidStorage.ExistingData(variant, remainingAmount)
+            } else {
+                null
+            }
+            storageMap[uuid] = TankFluidStorage(newBucketCap, data).also { it.onChanged = ::markDirty }
+        } else {
+            // 分断あり: 液体を均等分配
+            splitIntoComponents(components, uuid, variant, remainingAmount, groupPositions.size)
+        }
+
+        markDirty()
+        return removedData
+    }
+
+    private fun findConnectedComponents(positions: List<BlockPos>): List<Set<BlockPos>> {
+        val posSet = positions.toMutableSet()
+        val components = mutableListOf<Set<BlockPos>>()
+
+        while (posSet.isNotEmpty()) {
+            val start = posSet.first()
+            val reachable = mutableSetOf(start)
+            val queue = ArrayDeque<BlockPos>()
+            queue.add(start)
+
+            while (queue.isNotEmpty()) {
+                val current = queue.removeFirst()
+                for (offset in adjacentOffsets) {
+                    val neighbor = current.add(offset)
+                    if (neighbor in posSet && neighbor !in reachable) {
+                        reachable.add(neighbor)
+                        queue.add(neighbor)
+                    }
+                }
+            }
+
+            components.add(reachable)
+            posSet.removeAll(reachable)
+        }
+
+        return components
+    }
+
+    private fun splitIntoComponents(
+        components: List<Set<BlockPos>>,
+        originalUuid: UUID,
+        variant: net.fabricmc.fabric.api.transfer.v1.fluid.FluidVariant?,
+        remainingAmount: Long,
+        remainingTanks: Int,
+    ) {
+        val basePerTank = remainingAmount / remainingTanks
+        var extraTanks = (remainingAmount % remainingTanks).toInt()
+
+        // 最大の成分に元の UUID を再利用
+        val sorted = components.sortedByDescending { it.size }
+
+        for ((index, component) in sorted.withIndex()) {
+            val componentBase = basePerTank * component.size
+            val componentExtra = minOf(extraTanks, component.size)
+            val componentAmount = componentBase + componentExtra
+            extraTanks -= componentExtra
+
+            val newBucketCap = component.size * DEFAULT_BUCKET_CAPACITY
+            val data = if (variant != null && !variant.isBlank && componentAmount > 0) {
+                TankFluidStorage.ExistingData(variant, componentAmount)
+            } else {
+                null
+            }
+            val storage = TankFluidStorage(newBucketCap, data).also { it.onChanged = ::markDirty }
+
+            if (index == 0) {
+                // 最大の成分は元の UUID を再利用
+                storageMap[originalUuid] = storage
+                // 他の成分のポジションだけリマップが必要（後続で処理）
+            } else {
+                val newUuid = UUID.randomUUID()
+                storageMap[newUuid] = storage
+                for (p in component) {
+                    positionalStorageMap[p] = newUuid
+                }
             }
         }
-        markDirty()
     }
 
     private data class PositionalStorageEntry(val pos: BlockPos, val id: UUID) {
