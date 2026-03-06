@@ -11,6 +11,8 @@ import net.fabricmc.fabric.api.transfer.v1.storage.base.SingleVariantStorage
 class TankFluidStorage(val bucketCapacity: Int = 32, fluid: ExistingData? = null) : SingleVariantStorage<FluidVariant>() {
     constructor(bucketCapacity: Int, fluid: Optional<ExistingData>) : this(bucketCapacity, fluid.getOrNull())
 
+    var onChanged: (() -> Unit)? = null
+
     init {
         if (fluid != null) {
             val (variant, amount) = fluid
@@ -24,7 +26,7 @@ class TankFluidStorage(val bucketCapacity: Int = 32, fluid: ExistingData? = null
     override fun getCapacity(variant: FluidVariant?): Long = bucketCapacity * FluidConstants.BUCKET
 
     override fun onFinalCommit() {
-        // TODO()
+        onChanged?.invoke()
     }
 
     data class ExistingData(val variant: FluidVariant, val amount: Long) {

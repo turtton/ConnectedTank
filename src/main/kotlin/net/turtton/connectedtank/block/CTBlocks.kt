@@ -27,7 +27,8 @@ object CTBlocks {
 
     fun init() {
         FluidStorage.SIDED.registerForBlocks({ world, pos, _, _, _ ->
-            (world as? ServerWorld)?.persistentStateManager?.get(FluidStoragePersistentState.TYPE)?.getStorage(pos)
+            // FIXME: Provide tank detail to client
+            (world as? ServerWorld)?.persistentStateManager?.get(FluidStoragePersistentState.TYPE)?.getStorage(pos) ?: TankFluidStorage()
         }, CONNECTED_TANK)
     }
 }
