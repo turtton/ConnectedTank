@@ -23,7 +23,10 @@ object ConnectedTankClient : ClientModInitializer {
 
         ClientPlayNetworking.registerGlobalReceiver(ConfigSyncPayload.ID) { payload, _ ->
             SyncedServerConfig.syncedConfig = CTServerConfig(
-                tankBucketCapacity = payload.tankBucketCapacity,
+                tankBucketCapacity = payload.tankBucketCapacity.coerceIn(
+                    1,
+                    CTServerConfig.MAX_BUCKET_CAPACITY,
+                ),
             )
         }
 

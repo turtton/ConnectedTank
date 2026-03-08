@@ -1,7 +1,6 @@
 package net.turtton.connectedtank.config
 
-import net.turtton.connectedtank.config.CTServerConfig
-
 object SyncedServerConfig {
+    @Volatile
     var syncedConfig: CTServerConfig? = null
 }

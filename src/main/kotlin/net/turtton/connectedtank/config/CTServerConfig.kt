@@ -1,7 +1,10 @@
 package net.turtton.connectedtank.config
 
+import com.google.gson.Gson
 import com.google.gson.GsonBuilder
 import com.google.gson.JsonParser
+import com.google.gson.stream.JsonReader
+import java.io.StringReader
 import java.nio.file.Files
 import net.fabricmc.loader.api.FabricLoader
 import net.turtton.connectedtank.ConnectedTank
@@ -10,24 +13,21 @@ class CTServerConfig(
     var tankBucketCapacity: Int = DEFAULT_BUCKET_CAPACITY,
 ) {
     fun save() {
-        val gson = GsonBuilder().setPrettyPrinting().create()
-        val jsonString = gson.toJson(this)
-        val commented = buildString {
-            appendLine("// ConnectedTank Server Config")
-            for (line in jsonString.lines()) {
-                if (line.contains("\"tankBucketCapacity\"")) {
-                    appendLine("  // Bucket capacity per single tank block (default: $DEFAULT_BUCKET_CAPACITY)")
-                }
-                appendLine(line)
-            }
+        try {
+            val jsonString = GSON.toJson(this)
+            Files.writeString(CONFIG_PATH, jsonString)
+        } catch (e: Exception) {
+            ConnectedTank.logger.error("Failed to save server config", e)
         }
-        Files.writeString(CONFIG_PATH, commented)
     }
 
     companion object {
         const val DEFAULT_BUCKET_CAPACITY = 32
+        const val MAX_BUCKET_CAPACITY = 256
+        private val GSON: Gson = GsonBuilder().setPrettyPrinting().create()
         private val CONFIG_PATH = FabricLoader.getInstance().configDir.resolve("connectedtank-server.json")
 
+        @Volatile
         var instance = CTServerConfig()
             private set
 
@@ -39,16 +39,17 @@ class CTServerConfig(
             }
             try {
                 val content = Files.readString(CONFIG_PATH)
-                val stripped = content.lines()
-                    .filter { !it.trimStart().startsWith("//") }
-                    .joinToString("\n")
-                val json = JsonParser.parseString(stripped).asJsonObject
+                val reader = JsonReader(StringReader(content))
+                reader.isLenient = true
+                val json = JsonParser.parseReader(reader).asJsonObject
                 val capacity = if (json.has("tankBucketCapacity")) {
                     json.get("tankBucketCapacity").asInt
                 } else {
                     DEFAULT_BUCKET_CAPACITY
                 }
-                instance = CTServerConfig(tankBucketCapacity = capacity.coerceAtLeast(1))
+                instance = CTServerConfig(
+                    tankBucketCapacity = capacity.coerceIn(1, MAX_BUCKET_CAPACITY),
+                )
             } catch (e: Exception) {
                 ConnectedTank.logger.error("Failed to load server config, using defaults", e)
                 instance = CTServerConfig()
