@@ -18,18 +18,16 @@ class FluidStoragePersistentState(
     private val positionalStorageMap: MutableMap<BlockPos, UUID> = positionalStorageMap.toMutableMap()
     private val storageMap: MutableMap<UUID, TankFluidStorage> = storageMap.toMutableMap()
 
-    fun getStorage(pos: BlockPos): TankFluidStorage? = positionalStorageMap[pos]?.let(storageMap::get)?.also {
-        it.onChanged = ::markDirty
+    fun getStorage(pos: BlockPos): TankFluidStorage? = positionalStorageMap[pos]?.let(storageMap::get)
+
+    fun getGroupPositions(pos: BlockPos): List<BlockPos> {
+        val uuid = positionalStorageMap[pos] ?: return emptyList()
+        return positionalStorageMap.entries
+            .filter { it.value == uuid }
+            .map { it.key }
     }
 
-    private val adjacentOffsets = listOf(
-        BlockPos(-1, 0, 0),
-        BlockPos(1, 0, 0),
-        BlockPos(0, 0, -1),
-        BlockPos(0, 0, 1),
-        BlockPos(0, -1, 0),
-        BlockPos(0, 1, 0),
-    )
+    private val adjacentOffsets = ADJACENT_OFFSETS
 
     fun addStorage(pos: BlockPos, storage: TankFluidStorage, interactedAt: BlockPos? = null) {
         val neighborIds = if (interactedAt != null) {
@@ -230,6 +228,14 @@ class FluidStoragePersistentState(
     }
 
     companion object {
+        val ADJACENT_OFFSETS = listOf(
+            BlockPos(-1, 0, 0),
+            BlockPos(1, 0, 0),
+            BlockPos(0, 0, -1),
+            BlockPos(0, 0, 1),
+            BlockPos(0, -1, 0),
+            BlockPos(0, 1, 0),
+        )
         private const val DEFAULT_BUCKET_CAPACITY = 32
 
         val CODEC: Codec<FluidStoragePersistentState> = RecordCodecBuilder.create {

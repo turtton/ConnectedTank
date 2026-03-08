@@ -8,11 +8,12 @@ import net.minecraft.registry.Registry
 import net.minecraft.registry.RegistryKey
 import net.minecraft.registry.RegistryKeys
 import net.minecraft.server.world.ServerWorld
+import net.minecraft.util.math.BlockPos
 import net.turtton.connectedtank.extension.ModIdentifier
 import net.turtton.connectedtank.world.FluidStoragePersistentState
 
 object CTBlocks {
-    val CONNECTED_TANK = register("connected_tank", ::ConnectedTankBlock)
+    val CONNECTED_TANK = register("connected_tank", ::ConnectedTankBlock) { nonOpaque() }
 
     private fun register(
         name: String,
@@ -27,10 +28,26 @@ object CTBlocks {
 
     fun init() {
         FluidStorage.SIDED.registerForBlocks({ world, pos, _, _, _ ->
-            // TODO: Provide tank detail to client
             val serverWorld = world as? ServerWorld ?: return@registerForBlocks null
             val state = serverWorld.persistentStateManager.getOrCreate(FluidStoragePersistentState.TYPE)
-            state.getStorage(pos) ?: TankFluidStorage().also { state.addStorage(pos, it) }
+            val storage = state.getStorage(pos) ?: TankFluidStorage().also { state.addStorage(pos, it) }
+            storage.onChanged = {
+                state.markDirty()
+                syncGroupBlockEntities(serverWorld, pos, state)
+            }
+            storage
         }, CONNECTED_TANK)
+    }
+
+    internal fun syncGroupBlockEntities(
+        world: ServerWorld,
+        pos: BlockPos,
+        state: FluidStoragePersistentState = world.persistentStateManager.getOrCreate(FluidStoragePersistentState.TYPE),
+    ) {
+        val storage = state.getStorage(pos) ?: return
+        for (groupPos in state.getGroupPositions(pos)) {
+            val blockEntity = world.getBlockEntity(groupPos) as? ConnectedTankBlockEntity ?: continue
+            blockEntity.updateFromStorage(storage)
+        }
     }
 }
