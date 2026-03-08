@@ -1,0 +1,9 @@
+{
+  "config.connectedtank.title": "ConnectedTank Config",
+  "config.connectedtank.category.server": "Server",
+  "config.connectedtank.category.client": "Client",
+  "config.connectedtank.server.tankBucketCapacity": "Tank Bucket Capacity",
+  "config.connectedtank.server.tankBucketCapacity.description": "Bucket capacity per single tank block",
+  "config.connectedtank.client.renderQuality": "Render Quality",
+  "config.connectedtank.client.renderQuality.description": "Rendering quality for tank fluid display"
+}

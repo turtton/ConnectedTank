@@ -31,6 +31,12 @@
 				"value": "net.turtton.connectedtank.ConnectedTankDataGenerator",
 				"adapter": "kotlin"
 			}
+		],
+		"modmenu": [
+			{
+				"value": "net.turtton.connectedtank.config.CTConfigScreen",
+				"adapter": "kotlin"
+			}
 		]
 	},
 	"mixins": [
@@ -48,6 +54,7 @@
 		"fabric-language-kotlin": "*"
 	},
 	"suggests": {
-		"another-mod": "*"
+		"yet_another_config_lib_v3": ">=3.7.0",
+		"modmenu": "*"
 	}
 }

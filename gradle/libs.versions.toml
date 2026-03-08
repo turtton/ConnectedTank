@@ -12,6 +12,8 @@ mod-version = "1.0.0"
 
 rei = "20.0.811"
 jade = "19.3.2+fabric"
+yacl = "3.7.1+1.21.6-fabric"
+modmenu = "15.0.1"
 
 [libraries]
 minecraft = { module = "com.mojang:minecraft", version.ref = "minecraft" }
@@ -22,6 +24,8 @@ fabric-language-kotlin = { module = "net.fabricmc:fabric-language-kotlin", versi
 
 rei = { module = "me.shedaniel:RoughlyEnoughItems-fabric", version.ref = "rei" }
 jade = { module = "maven.modrinth:jade", version.ref = "jade" }
+yacl = { module = "dev.isxander:yet-another-config-lib", version.ref = "yacl" }
+modmenu = { module = "com.terraformersmc:modmenu", version.ref = "modmenu" }
 
 [plugins]
 fabric-loom = { id = "fabric-loom", version.ref = "loom" }

@@ -21,6 +21,8 @@ repositories {
     // See https://docs.gradle.org/current/userguide/declaring_repositories.html
     // for more information about repositories.
     maven { url = uri("https://maven.shedaniel.me") }
+    maven { url = uri("https://maven.isxander.dev/releases") }
+    maven { url = uri("https://maven.terraformersmc.com/releases") }
 
     exclusiveContent {
         forRepository {
@@ -71,6 +73,11 @@ dependencies {
     // Fabric API. This is technically optional, but you probably want it anyway.
     modImplementation(libs.fabric.api)
     modImplementation(libs.fabric.language.kotlin)
+
+    modCompileOnly(libs.yacl)
+    modRuntimeOnly(libs.yacl)
+    modCompileOnly(libs.modmenu)
+    modRuntimeOnly(libs.modmenu)
 
     modRuntimeOnly(libs.rei)
     modRuntimeOnly(libs.jade)
