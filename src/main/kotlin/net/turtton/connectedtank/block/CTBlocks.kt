@@ -44,7 +44,7 @@ object CTBlocks {
         pos: BlockPos,
         state: FluidStoragePersistentState = world.persistentStateManager.getOrCreate(FluidStoragePersistentState.TYPE),
     ) {
-        val storage = state.getStorageReadOnly(pos) ?: return
+        val storage = state.getStorage(pos) ?: return
         for (groupPos in state.getGroupPositions(pos)) {
             val blockEntity = world.getBlockEntity(groupPos) as? ConnectedTankBlockEntity ?: continue
             blockEntity.updateFromStorage(storage)

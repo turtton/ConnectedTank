@@ -53,7 +53,31 @@ class ConnectedTankBlockEntityRenderer(
         val minZ = if (hasNorth) 0f else INSET
         val maxZ = if (hasSouth) 1f else 1f - INSET
 
-        val fluidTop = if (hasUp) 1f else minY + (1f - INSET - minY) * entity.fillLevel
+        val fluidTop = run {
+            if (world == null) return@run minY + (1f - INSET - minY) * entity.fillLevel
+
+            var blocksBelow = 0
+            var p = pos.down()
+            while (world.getBlockState(p).isOf(tankBlock)) {
+                blocksBelow++
+                p = p.down()
+            }
+            var blocksAbove = 0
+            p = pos.up()
+            while (world.getBlockState(p).isOf(tankBlock)) {
+                blocksAbove++
+                p = p.up()
+            }
+            val columnHeight = 1 + blocksBelow + blocksAbove
+            if (columnHeight <= 1) {
+                return@run minY + (1f - INSET - minY) * entity.fillLevel
+            }
+            val totalFillHeight = entity.fillLevel * columnHeight
+            val lowerBound = blocksBelow.toFloat()
+            if (totalFillHeight <= lowerBound) return
+            val localFill = ((totalFillHeight - lowerBound).coerceIn(0f, 1f))
+            minY + (1f - INSET - minY) * localFill
+        }
 
         val fullLight = LightmapTextureManager.MAX_LIGHT_COORDINATE
         val ov = OverlayTexture.DEFAULT_UV

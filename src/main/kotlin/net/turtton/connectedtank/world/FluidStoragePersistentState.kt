@@ -18,11 +18,7 @@ class FluidStoragePersistentState(
     private val positionalStorageMap: MutableMap<BlockPos, UUID> = positionalStorageMap.toMutableMap()
     private val storageMap: MutableMap<UUID, TankFluidStorage> = storageMap.toMutableMap()
 
-    fun getStorage(pos: BlockPos): TankFluidStorage? = positionalStorageMap[pos]?.let(storageMap::get)?.also {
-        it.onChanged = ::markDirty
-    }
-
-    fun getStorageReadOnly(pos: BlockPos): TankFluidStorage? = positionalStorageMap[pos]?.let(storageMap::get)
+    fun getStorage(pos: BlockPos): TankFluidStorage? = positionalStorageMap[pos]?.let(storageMap::get)
 
     fun getGroupPositions(pos: BlockPos): List<BlockPos> {
         val uuid = positionalStorageMap[pos] ?: return emptyList()
