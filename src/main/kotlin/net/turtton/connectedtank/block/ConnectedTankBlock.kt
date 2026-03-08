@@ -30,22 +30,13 @@ class ConnectedTankBlock(settings: Settings) :
     BlockEntityProvider {
     private val pendingDropData = ConcurrentHashMap<BlockPos, TankFluidStorage.ExistingData>()
 
-    private val adjacentOffsets = listOf(
-        BlockPos(-1, 0, 0),
-        BlockPos(1, 0, 0),
-        BlockPos(0, 0, -1),
-        BlockPos(0, 0, 1),
-        BlockPos(0, -1, 0),
-        BlockPos(0, 1, 0),
-    )
-
     override fun createBlockEntity(pos: BlockPos, state: BlockState): BlockEntity = ConnectedTankBlockEntity(pos, state)
 
     override fun isSideInvisible(state: BlockState, stateFrom: BlockState, direction: Direction): Boolean = stateFrom.isOf(this) || super.isSideInvisible(state, stateFrom, direction)
 
     override fun onStateReplaced(state: BlockState, world: ServerWorld, pos: BlockPos, moved: Boolean) {
         val persistentState = world.persistentStateManager.getOrCreate(FluidStoragePersistentState.TYPE)
-        val neighborPositions = adjacentOffsets
+        val neighborPositions = FluidStoragePersistentState.ADJACENT_OFFSETS
             .map { pos.add(it) }
             .filter { world.getBlockState(it).isOf(this) }
 

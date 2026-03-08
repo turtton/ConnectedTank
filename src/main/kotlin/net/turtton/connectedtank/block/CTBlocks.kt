@@ -13,7 +13,7 @@ import net.turtton.connectedtank.extension.ModIdentifier
 import net.turtton.connectedtank.world.FluidStoragePersistentState
 
 object CTBlocks {
-    val CONNECTED_TANK = register("connected_tank", ::ConnectedTankBlock)
+    val CONNECTED_TANK = register("connected_tank", ::ConnectedTankBlock) { nonOpaque() }
 
     private fun register(
         name: String,
@@ -21,7 +21,7 @@ object CTBlocks {
         settingsFactory: AbstractBlock.Settings.() -> Unit = {},
     ): Block {
         val blockKey = RegistryKey.of(RegistryKeys.BLOCK, ModIdentifier(name))
-        val settings = AbstractBlock.Settings.create().nonOpaque().apply(settingsFactory)
+        val settings = AbstractBlock.Settings.create().apply(settingsFactory)
         val block = factory(settings.registryKey(blockKey))
         return Registry.register(Registries.BLOCK, blockKey, block)
     }
@@ -44,7 +44,7 @@ object CTBlocks {
         pos: BlockPos,
         state: FluidStoragePersistentState = world.persistentStateManager.getOrCreate(FluidStoragePersistentState.TYPE),
     ) {
-        val storage = state.getStorage(pos) ?: return
+        val storage = state.getStorageReadOnly(pos) ?: return
         for (groupPos in state.getGroupPositions(pos)) {
             val blockEntity = world.getBlockEntity(groupPos) as? ConnectedTankBlockEntity ?: continue
             blockEntity.updateFromStorage(storage)
