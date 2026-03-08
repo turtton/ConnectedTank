@@ -22,6 +22,13 @@ class FluidStoragePersistentState(
         it.onChanged = ::markDirty
     }
 
+    fun getGroupPositions(pos: BlockPos): List<BlockPos> {
+        val uuid = positionalStorageMap[pos] ?: return emptyList()
+        return positionalStorageMap.entries
+            .filter { it.value == uuid }
+            .map { it.key }
+    }
+
     private val adjacentOffsets = listOf(
         BlockPos(-1, 0, 0),
         BlockPos(1, 0, 0),

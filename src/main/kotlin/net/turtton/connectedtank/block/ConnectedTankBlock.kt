@@ -6,7 +6,9 @@ import net.fabricmc.fabric.api.transfer.v1.fluid.FluidStorageUtil
 import net.fabricmc.fabric.api.transfer.v1.fluid.FluidVariantAttributes
 import net.fabricmc.loader.api.FabricLoader
 import net.minecraft.block.Block
+import net.minecraft.block.BlockEntityProvider
 import net.minecraft.block.BlockState
+import net.minecraft.block.entity.BlockEntity
 import net.minecraft.entity.LivingEntity
 import net.minecraft.entity.player.PlayerEntity
 import net.minecraft.item.ItemStack
@@ -22,20 +24,40 @@ import net.minecraft.world.World
 import net.turtton.connectedtank.component.CTDataComponentTypes
 import net.turtton.connectedtank.world.FluidStoragePersistentState
 
-class ConnectedTankBlock(settings: Settings) : Block(settings) {
+class ConnectedTankBlock(settings: Settings) :
+    Block(settings),
+    BlockEntityProvider {
     private val pendingDropData = ConcurrentHashMap<BlockPos, TankFluidStorage.ExistingData>()
 
+    private val adjacentOffsets = listOf(
+        BlockPos(-1, 0, 0),
+        BlockPos(1, 0, 0),
+        BlockPos(0, 0, -1),
+        BlockPos(0, 0, 1),
+        BlockPos(0, -1, 0),
+        BlockPos(0, 1, 0),
+    )
+
+    override fun createBlockEntity(pos: BlockPos, state: BlockState): BlockEntity = ConnectedTankBlockEntity(pos, state)
+
     override fun onStateReplaced(state: BlockState, world: ServerWorld, pos: BlockPos, moved: Boolean) {
-        val storage = world.persistentStateManager.getOrCreate(FluidStoragePersistentState.TYPE)
+        val persistentState = world.persistentStateManager.getOrCreate(FluidStoragePersistentState.TYPE)
+        val neighborPositions = adjacentOffsets
+            .map { pos.add(it) }
+            .filter { world.getBlockState(it).isOf(this) }
+
         if (!pendingDropData.containsKey(pos)) {
-            // Player mining パス: getDroppedStacks がまだ呼ばれていない
-            val fluidData = storage.removeStorage(pos)
+            val fluidData = persistentState.removeStorage(pos)
             if (fluidData != null) pendingDropData[pos] = fluidData
         } else {
-            // Explosion パス: getDroppedStacks が先に処理済み
             pendingDropData.remove(pos)
-            storage.removeStorage(pos)
+            persistentState.removeStorage(pos)
         }
+
+        for (neighborPos in neighborPositions) {
+            CTBlocks.syncGroupBlockEntities(world, neighborPos, persistentState)
+        }
+
         super.onStateReplaced(state, world, pos, moved)
     }
 
@@ -70,14 +92,15 @@ class ConnectedTankBlock(settings: Settings) : Block(settings) {
 
     override fun onPlaced(world: World?, pos: BlockPos?, state: BlockState?, placer: LivingEntity?, itemStack: ItemStack?) {
         if (world is ServerWorld && pos != null) {
-            val storage = world.persistentStateManager.getOrCreate(FluidStoragePersistentState.TYPE)
+            val persistentState = world.persistentStateManager.getOrCreate(FluidStoragePersistentState.TYPE)
             val fluidData = itemStack?.get(CTDataComponentTypes.TANK_FLUID)
             val tankStorage = if (fluidData != null) {
                 TankFluidStorage(fluid = fluidData)
             } else {
                 TankFluidStorage()
             }
-            storage.addStorage(pos, tankStorage)
+            persistentState.addStorage(pos, tankStorage)
+            CTBlocks.syncGroupBlockEntities(world, pos, persistentState)
         }
     }
 
@@ -103,9 +126,11 @@ class ConnectedTankBlock(settings: Settings) : Block(settings) {
         if (world !is ServerWorld) return ActionResult.SUCCESS
         if (pos == null) return ActionResult.PASS_TO_DEFAULT_BLOCK_ACTION
 
-        val tankStorage = world.persistentStateManager.getOrCreate(FluidStoragePersistentState.TYPE).getStorage(pos) ?: return ActionResult.PASS_TO_DEFAULT_BLOCK_ACTION
+        val persistentState = world.persistentStateManager.getOrCreate(FluidStoragePersistentState.TYPE)
+        val tankStorage = persistentState.getStorage(pos) ?: return ActionResult.PASS_TO_DEFAULT_BLOCK_ACTION
         val result = FluidStorageUtil.interactWithFluidStorage(tankStorage, player, hand)
         return if (result) {
+            CTBlocks.syncGroupBlockEntities(world, pos, persistentState)
             ActionResult.SUCCESS
         } else {
             ActionResult.PASS_TO_DEFAULT_BLOCK_ACTION
