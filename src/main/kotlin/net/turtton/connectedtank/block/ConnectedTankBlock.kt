@@ -20,6 +20,7 @@ import net.minecraft.util.ActionResult
 import net.minecraft.util.Hand
 import net.minecraft.util.hit.BlockHitResult
 import net.minecraft.util.math.BlockPos
+import net.minecraft.util.math.Direction
 import net.minecraft.world.World
 import net.turtton.connectedtank.component.CTDataComponentTypes
 import net.turtton.connectedtank.world.FluidStoragePersistentState
@@ -39,6 +40,8 @@ class ConnectedTankBlock(settings: Settings) :
     )
 
     override fun createBlockEntity(pos: BlockPos, state: BlockState): BlockEntity = ConnectedTankBlockEntity(pos, state)
+
+    override fun isSideInvisible(state: BlockState, stateFrom: BlockState, direction: Direction): Boolean = stateFrom.isOf(this) || super.isSideInvisible(state, stateFrom, direction)
 
     override fun onStateReplaced(state: BlockState, world: ServerWorld, pos: BlockPos, moved: Boolean) {
         val persistentState = world.persistentStateManager.getOrCreate(FluidStoragePersistentState.TYPE)
