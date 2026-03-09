@@ -156,7 +156,9 @@ tasks {
         inputFile.set(clientGametestJar.flatMap { it.archiveFile })
         sourceNamespace.set("named")
         targetNamespace.set("intermediary")
-        archiveClassifier.set("client-gametest")
+        archiveClassifier.set("client-gametest-remapped")
+        classpath.from(clientGametestSourceSet.compileClasspath)
+        addNestedDependencies.set(false)
     }
     register<net.fabricmc.loom.task.prod.ClientProductionRunTask>("runProductionClientGameTest") {
         jvmArgs.add("-Dfabric.client.gametest")
