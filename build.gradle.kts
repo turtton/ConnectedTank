@@ -56,12 +56,53 @@ fabricApi {
         createSourceSet = true
         modId = "connectedtank-test"
         enableGameTests = true
+        enableClientGameTests = false
         eula = true
     }
 }
 
 sourceSets.named("gametest") {
     kotlin.srcDir("src/gametest/kotlin")
+}
+
+val clientGametestSourceSet = sourceSets.create("clientGametest") {
+    compileClasspath += sourceSets.main.get().output
+    runtimeClasspath += sourceSets.main.get().output
+    compileClasspath += sourceSets.getByName("client").output
+    runtimeClasspath += sourceSets.getByName("client").output
+    kotlin.srcDir("src/clientGametest/kotlin")
+}
+
+configurations.named(clientGametestSourceSet.compileClasspathConfigurationName) {
+    extendsFrom(configurations[sourceSets.main.get().compileClasspathConfigurationName])
+    extendsFrom(configurations[sourceSets.getByName("client").compileClasspathConfigurationName])
+}
+configurations.named(clientGametestSourceSet.runtimeClasspathConfigurationName) {
+    extendsFrom(configurations[sourceSets.main.get().runtimeClasspathConfigurationName])
+    extendsFrom(configurations[sourceSets.getByName("client").runtimeClasspathConfigurationName])
+}
+
+loom {
+    mods {
+        register("connectedtank-client-test") {
+            sourceSet(clientGametestSourceSet)
+        }
+    }
+
+    createRemapConfigurations(clientGametestSourceSet)
+
+    runs {
+        register("clientGameTest") {
+            inherit(runs.getByName("client"))
+            source(clientGametestSourceSet)
+            property("fabric.client.gametest")
+            property(
+                "fabric.client.gametest.testModResourcesPath",
+                file("src/clientGametest/resources").absolutePath,
+            )
+            runDir("build/run/clientGameTest")
+        }
+    }
 }
 
 dependencies {
@@ -103,6 +144,9 @@ tasks {
     }
     named<UpdateDaemonJvm>("updateDaemonJvm") {
         languageVersion = JavaLanguageVersion.of(21)
+    }
+    register<net.fabricmc.loom.task.prod.ClientProductionRunTask>("runProductionClientGameTest") {
+        jvmArgs.add("-Dfabric.client.gametest")
     }
 }
 

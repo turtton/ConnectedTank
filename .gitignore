@@ -32,6 +32,10 @@ bin/
 
 run/
 
+# loom decompiled sources
+
+/net/
+
 # datagen
 
 src/main/generated/.cache/
