@@ -59,11 +59,11 @@ class CTClientConfig(
                     RenderQuality.MEDIUM
                 }
                 instance = CTClientConfig(renderQuality = quality)
+                instance.save()
             } catch (e: Exception) {
                 ConnectedTank.logger.error("Failed to load client config, using defaults", e)
                 instance = CTClientConfig()
             }
-            instance.save()
         }
     }
 }

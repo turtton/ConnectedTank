@@ -52,11 +52,11 @@ class CTServerConfig(
                 instance = CTServerConfig(
                     tankBucketCapacity = capacity.coerceIn(1, MAX_BUCKET_CAPACITY),
                 )
+                instance.save()
             } catch (e: Exception) {
                 ConnectedTank.logger.error("Failed to load server config, using defaults", e)
                 instance = CTServerConfig()
             }
-            instance.save()
         }
     }
 }
