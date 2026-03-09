@@ -52,6 +52,7 @@ fabricApi {
     configureDataGeneration {
         client = true
     }
+    @Suppress("UnstableApiUsage")
     configureTests {
         createSourceSet = true
         modId = "connectedtank-test"
@@ -145,6 +146,7 @@ tasks {
     withType<JavaCompile>().configureEach {
         options.release.set(21)
     }
+    @Suppress("UnstableApiUsage")
     named<UpdateDaemonJvm>("updateDaemonJvm") {
         languageVersion = JavaLanguageVersion.of(21)
     }
@@ -160,13 +162,14 @@ tasks {
         classpath.from(clientGametestSourceSet.compileClasspath)
         addNestedDependencies.set(false)
     }
+    @Suppress("UnstableApiUsage")
     register<net.fabricmc.loom.task.prod.ClientProductionRunTask>("runProductionClientGameTest") {
         jvmArgs.add("-Dfabric.client.gametest")
         jvmArgs.add(
             "-Dfabric.client.gametest.testModResourcesPath=${file("src/clientGametest/resources").absolutePath}",
         )
-        getMods().from(remapClientGametestJar)
-        getRunDir().set(project.layout.projectDirectory.dir("build/run/clientGameTest"))
+        mods.from(remapClientGametestJar)
+        runDir.set(project.layout.projectDirectory.dir("build/run/clientGameTest"))
     }
 }
 
