@@ -12,11 +12,13 @@ import net.minecraft.util.math.BlockPos
 import net.minecraft.world.World
 import net.turtton.connectedtank.block.CTBlocks
 import net.turtton.connectedtank.block.TankFluidStorage
+import net.turtton.connectedtank.config.CTServerConfig
 import net.turtton.connectedtank.world.FluidStoragePersistentState
 import org.apache.commons.lang3.function.FailableConsumer
 import org.lwjgl.glfw.GLFW
 
 object ConnectedTankClientGameTest : FabricClientGameTest {
+    private val TANK_CAPACITY = CTServerConfig.DEFAULT_BUCKET_CAPACITY.toLong()
     private fun TestServerContext.onServer(action: (MinecraftServer) -> Unit) {
         runOnServer(FailableConsumer<MinecraftServer, RuntimeException> { action(it) })
     }
@@ -120,7 +122,7 @@ object ConnectedTankClientGameTest : FabricClientGameTest {
     private fun testFullWaterTank(context: ClientGameTestContext, server: TestServerContext) {
         clearArea(server, basePos, 3, 3, 3)
         placeTank(server, basePos)
-        insertFluid(server, basePos, FluidVariant.of(Fluids.WATER), FluidConstants.BUCKET * 10)
+        insertFluid(server, basePos, FluidVariant.of(Fluids.WATER), FluidConstants.BUCKET * TANK_CAPACITY)
         context.waitTicks(20)
         setupCamera(context, server, 1.8, -58.5, 1.8, 135f, 50f)
         context.takeScreenshot("2_full_water_tank")
@@ -129,7 +131,7 @@ object ConnectedTankClientGameTest : FabricClientGameTest {
     private fun testHalfWaterTank(context: ClientGameTestContext, server: TestServerContext) {
         clearArea(server, basePos, 3, 3, 3)
         placeTank(server, basePos)
-        insertFluid(server, basePos, FluidVariant.of(Fluids.WATER), FluidConstants.BUCKET * 5)
+        insertFluid(server, basePos, FluidVariant.of(Fluids.WATER), FluidConstants.BUCKET * TANK_CAPACITY / 2)
         context.waitTicks(20)
         setupCamera(context, server, 1.8, -58.5, 1.8, 135f, 50f)
         context.takeScreenshot("3_half_water_tank")
@@ -141,7 +143,7 @@ object ConnectedTankClientGameTest : FabricClientGameTest {
         val pos2 = basePos.east()
         placeTank(server, pos1)
         placeTank(server, pos2)
-        insertFluid(server, pos1, FluidVariant.of(Fluids.WATER), FluidConstants.BUCKET * 10)
+        insertFluid(server, pos1, FluidVariant.of(Fluids.WATER), FluidConstants.BUCKET * TANK_CAPACITY * 2)
         context.waitTicks(20)
         setupCamera(context, server, 2.5, -58.5, 2.5, 135f, 45f)
         context.takeScreenshot("4_horizontal_connected_tanks")
@@ -153,7 +155,7 @@ object ConnectedTankClientGameTest : FabricClientGameTest {
         val pos2 = basePos.up()
         placeTank(server, pos1)
         placeTank(server, pos2)
-        insertFluid(server, pos1, FluidVariant.of(Fluids.WATER), FluidConstants.BUCKET * 10)
+        insertFluid(server, pos1, FluidVariant.of(Fluids.WATER), FluidConstants.BUCKET * TANK_CAPACITY * 2)
         context.waitTicks(20)
         setupCamera(context, server, 1.8, -57.0, 1.8, 135f, 45f)
         context.takeScreenshot("5_vertical_connected_tanks")
