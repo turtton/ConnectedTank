@@ -39,7 +39,7 @@ object CTBlocks {
         }, CONNECTED_TANK)
     }
 
-    internal fun syncGroupBlockEntities(
+    fun syncGroupBlockEntities(
         world: ServerWorld,
         pos: BlockPos,
         state: FluidStoragePersistentState = world.persistentStateManager.getOrCreate(FluidStoragePersistentState.TYPE),

@@ -1,0 +1,18 @@
+{
+	"schemaVersion": 1,
+	"id": "connectedtank-client-test",
+	"version": "1.0.0",
+	"name": "ConnectedTank Client Test",
+	"environment": "client",
+	"entrypoints": {
+		"fabric-client-gametest": [
+			{
+				"value": "net.turtton.connectedtank.test.ConnectedTankClientGameTest",
+				"adapter": "kotlin"
+			}
+		]
+	},
+	"depends": {
+		"connectedtank": "*"
+	}
+}
