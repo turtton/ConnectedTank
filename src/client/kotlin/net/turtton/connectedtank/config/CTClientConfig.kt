@@ -15,6 +15,7 @@ class CTClientConfig(
 ) {
     fun save() {
         try {
+            Files.createDirectories(CONFIG_DIR)
             val jsonString = GSON.toJson(this)
             Files.writeString(CONFIG_PATH, jsonString)
         } catch (e: Exception) {
@@ -30,7 +31,8 @@ class CTClientConfig(
 
     companion object {
         private val GSON: Gson = GsonBuilder().setPrettyPrinting().create()
-        private val CONFIG_PATH = FabricLoader.getInstance().configDir.resolve("connectedtank-client.json")
+        private val CONFIG_DIR = FabricLoader.getInstance().configDir.resolve("connectedtank")
+        private val CONFIG_PATH = CONFIG_DIR.resolve("client.json")
 
         @Volatile
         var instance = CTClientConfig()

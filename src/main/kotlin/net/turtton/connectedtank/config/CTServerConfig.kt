@@ -14,6 +14,7 @@ class CTServerConfig(
 ) {
     fun save() {
         try {
+            Files.createDirectories(CONFIG_DIR)
             val jsonString = GSON.toJson(this)
             Files.writeString(CONFIG_PATH, jsonString)
         } catch (e: Exception) {
@@ -25,7 +26,8 @@ class CTServerConfig(
         const val DEFAULT_BUCKET_CAPACITY = 32
         const val MAX_BUCKET_CAPACITY = 256
         private val GSON: Gson = GsonBuilder().setPrettyPrinting().create()
-        private val CONFIG_PATH = FabricLoader.getInstance().configDir.resolve("connectedtank-server.json")
+        private val CONFIG_DIR = FabricLoader.getInstance().configDir.resolve("connectedtank")
+        private val CONFIG_PATH = CONFIG_DIR.resolve("server.json")
 
         @Volatile
         var instance = CTServerConfig()
