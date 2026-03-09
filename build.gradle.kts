@@ -148,8 +148,23 @@ tasks {
     named<UpdateDaemonJvm>("updateDaemonJvm") {
         languageVersion = JavaLanguageVersion.of(21)
     }
+    val clientGametestJar = register<Jar>("clientGametestJar") {
+        from(clientGametestSourceSet.output)
+        archiveClassifier.set("client-gametest")
+    }
+    val remapClientGametestJar = register<net.fabricmc.loom.task.RemapJarTask>("remapClientGametestJar") {
+        inputFile.set(clientGametestJar.flatMap { it.archiveFile })
+        sourceNamespace.set("named")
+        targetNamespace.set("intermediary")
+        archiveClassifier.set("client-gametest")
+    }
     register<net.fabricmc.loom.task.prod.ClientProductionRunTask>("runProductionClientGameTest") {
         jvmArgs.add("-Dfabric.client.gametest")
+        jvmArgs.add(
+            "-Dfabric.client.gametest.testModResourcesPath=${file("src/clientGametest/resources").absolutePath}",
+        )
+        getMods().from(remapClientGametestJar)
+        getRunDir().set(project.layout.projectDirectory.dir("build/run/clientGameTest"))
     }
 }
 
