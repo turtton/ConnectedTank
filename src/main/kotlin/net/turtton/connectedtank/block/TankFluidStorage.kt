@@ -7,8 +7,9 @@ import kotlin.jvm.optionals.getOrNull
 import net.fabricmc.fabric.api.transfer.v1.fluid.FluidConstants
 import net.fabricmc.fabric.api.transfer.v1.fluid.FluidVariant
 import net.fabricmc.fabric.api.transfer.v1.storage.base.SingleVariantStorage
+import net.turtton.connectedtank.config.CTServerConfig
 
-class TankFluidStorage(val bucketCapacity: Int = 32, fluid: ExistingData? = null) : SingleVariantStorage<FluidVariant>() {
+class TankFluidStorage(val bucketCapacity: Int = CTServerConfig.instance.tankBucketCapacity, fluid: ExistingData? = null) : SingleVariantStorage<FluidVariant>() {
     constructor(bucketCapacity: Int, fluid: Optional<ExistingData>) : this(bucketCapacity, fluid.getOrNull())
 
     var onChanged: (() -> Unit)? = null

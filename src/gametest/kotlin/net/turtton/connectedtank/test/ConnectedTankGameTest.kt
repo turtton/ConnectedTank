@@ -13,6 +13,7 @@ import net.minecraft.util.math.BlockPos
 import net.minecraft.util.math.Direction
 import net.minecraft.world.GameMode
 import net.turtton.connectedtank.block.TankFluidStorage
+import net.turtton.connectedtank.config.CTServerConfig
 import net.turtton.connectedtank.item.CTItems
 import net.turtton.connectedtank.world.FluidStoragePersistentState
 
@@ -42,8 +43,8 @@ object ConnectedTankGameTest {
         context.assertTrue(storage != null, Text.literal("Storage should exist after placing tank"))
         context.assertTrue(storage!!.amount == 0L, Text.literal("New tank should be empty"))
         context.assertTrue(
-            storage.bucketCapacity == 32,
-            Text.literal("Single tank capacity should be 32 buckets"),
+            storage.bucketCapacity == CTServerConfig.DEFAULT_BUCKET_CAPACITY,
+            Text.literal("Single tank capacity should be ${CTServerConfig.DEFAULT_BUCKET_CAPACITY} buckets"),
         )
         context.complete()
     }
@@ -65,8 +66,8 @@ object ConnectedTankGameTest {
             Text.literal("Adjacent tanks should share the same storage instance"),
         )
         context.assertTrue(
-            storage1!!.bucketCapacity == 64,
-            Text.literal("Combined tank capacity should be 64 buckets"),
+            storage1!!.bucketCapacity == CTServerConfig.DEFAULT_BUCKET_CAPACITY * 2,
+            Text.literal("Combined tank capacity should be ${CTServerConfig.DEFAULT_BUCKET_CAPACITY * 2} buckets"),
         )
         context.complete()
     }
@@ -84,8 +85,8 @@ object ConnectedTankGameTest {
         val remaining = state.getStorage(context.getAbsolutePos(pos1))
         context.assertTrue(remaining != null, Text.literal("Remaining storage should exist"))
         context.assertTrue(
-            remaining!!.bucketCapacity == 32,
-            Text.literal("Capacity should be reduced to 32 buckets after removing one tank"),
+            remaining!!.bucketCapacity == CTServerConfig.DEFAULT_BUCKET_CAPACITY,
+            Text.literal("Capacity should be reduced to ${CTServerConfig.DEFAULT_BUCKET_CAPACITY} buckets after removing one tank"),
         )
 
         val removed = state.getStorage(context.getAbsolutePos(pos2))
@@ -172,8 +173,8 @@ object ConnectedTankGameTest {
         context.assertTrue(sA === sMid, Text.literal("A and Mid should share storage"))
         context.assertTrue(sA === sB, Text.literal("A and B should share storage after merge"))
         context.assertTrue(
-            sA!!.bucketCapacity == 96,
-            Text.literal("Merged capacity should be 96 buckets but was ${sA.bucketCapacity}"),
+            sA!!.bucketCapacity == CTServerConfig.DEFAULT_BUCKET_CAPACITY * 3,
+            Text.literal("Merged capacity should be ${CTServerConfig.DEFAULT_BUCKET_CAPACITY * 3} buckets but was ${sA.bucketCapacity}"),
         )
         context.complete()
     }
@@ -228,7 +229,7 @@ object ConnectedTankGameTest {
         }
 
         val lavaStorage = TankFluidStorage(
-            32,
+            CTServerConfig.DEFAULT_BUCKET_CAPACITY,
             TankFluidStorage.ExistingData(lava, FluidConstants.BUCKET),
         )
         state.addStorage(context.getAbsolutePos(posB), lavaStorage)
@@ -262,7 +263,7 @@ object ConnectedTankGameTest {
 
         val pos2 = BlockPos(1, 2, 0)
         val lavaStorage = TankFluidStorage(
-            32,
+            CTServerConfig.DEFAULT_BUCKET_CAPACITY,
             TankFluidStorage.ExistingData(FluidVariant.of(Fluids.LAVA), FluidConstants.BUCKET),
         )
         state.addStorage(context.getAbsolutePos(pos2), lavaStorage)
@@ -292,8 +293,8 @@ object ConnectedTankGameTest {
         val state = context.getFluidState()
         val sAll = state.getStorage(context.getAbsolutePos(posL))
         context.assertTrue(
-            sAll!!.bucketCapacity == 96,
-            Text.literal("3 tanks should have 96 bucket capacity"),
+            sAll!!.bucketCapacity == CTServerConfig.DEFAULT_BUCKET_CAPACITY * 3,
+            Text.literal("3 tanks should have ${CTServerConfig.DEFAULT_BUCKET_CAPACITY * 3} bucket capacity"),
         )
 
         state.removeStorage(context.getAbsolutePos(posM))
@@ -304,12 +305,12 @@ object ConnectedTankGameTest {
         context.assertTrue(sR != null, Text.literal("Right storage should exist"))
         context.assertTrue(sL !== sR, Text.literal("Left and right should be separate groups"))
         context.assertTrue(
-            sL!!.bucketCapacity == 32,
-            Text.literal("Left capacity should be 32 but was ${sL.bucketCapacity}"),
+            sL!!.bucketCapacity == CTServerConfig.DEFAULT_BUCKET_CAPACITY,
+            Text.literal("Left capacity should be ${CTServerConfig.DEFAULT_BUCKET_CAPACITY} but was ${sL.bucketCapacity}"),
         )
         context.assertTrue(
-            sR!!.bucketCapacity == 32,
-            Text.literal("Right capacity should be 32 but was ${sR.bucketCapacity}"),
+            sR!!.bucketCapacity == CTServerConfig.DEFAULT_BUCKET_CAPACITY,
+            Text.literal("Right capacity should be ${CTServerConfig.DEFAULT_BUCKET_CAPACITY} but was ${sR.bucketCapacity}"),
         )
         context.complete()
     }
@@ -357,8 +358,8 @@ object ConnectedTankGameTest {
         context.assertTrue(s00 === s10, Text.literal("00 and 10 should share storage"))
         context.assertTrue(s00 === s01, Text.literal("00 and 01 should share storage"))
         context.assertTrue(
-            s00!!.bucketCapacity == 96,
-            Text.literal("Remaining 3 tanks should have 96 bucket capacity but was ${s00.bucketCapacity}"),
+            s00!!.bucketCapacity == CTServerConfig.DEFAULT_BUCKET_CAPACITY * 3,
+            Text.literal("Remaining 3 tanks should have ${CTServerConfig.DEFAULT_BUCKET_CAPACITY * 3} bucket capacity but was ${s00.bucketCapacity}"),
         )
         context.complete()
     }

@@ -3,13 +3,13 @@ package net.turtton.connectedtank.world
 import com.mojang.serialization.Codec
 import com.mojang.serialization.codecs.RecordCodecBuilder
 import java.util.UUID
-import net.fabricmc.fabric.api.transfer.v1.fluid.FluidConstants
 import net.minecraft.util.Uuids
 import net.minecraft.util.math.BlockPos
 import net.minecraft.world.PersistentState
 import net.minecraft.world.PersistentStateType
 import net.turtton.connectedtank.MOD_ID
 import net.turtton.connectedtank.block.TankFluidStorage
+import net.turtton.connectedtank.config.CTServerConfig
 
 class FluidStoragePersistentState(
     positionalStorageMap: Map<BlockPos, UUID> = mapOf(),
@@ -61,8 +61,7 @@ class FluidStoragePersistentState(
 
         val primaryId = neighborIds.first()
         val totalBucketCap = storage.bucketCapacity + neighborStorages.sumOf { (_, s) -> s.bucketCapacity }
-        val totalAmount = (storage.amount + neighborStorages.sumOf { (_, s) -> s.amount })
-            .coerceAtMost(totalBucketCap.toLong() * FluidConstants.BUCKET)
+        val totalAmount = storage.amount + neighborStorages.sumOf { (_, s) -> s.amount }
         val mergedVariant = allVariants.firstOrNull()
         val existingData = mergedVariant?.let { TankFluidStorage.ExistingData(it, totalAmount) }
         val mergedStorage = TankFluidStorage(totalBucketCap, existingData).also { it.onChanged = ::markDirty }
@@ -125,7 +124,7 @@ class FluidStoragePersistentState(
 
         if (components.size == 1) {
             // 分断なし
-            val newBucketCap = groupPositions.size * DEFAULT_BUCKET_CAPACITY
+            val newBucketCap = groupPositions.size * defaultBucketCapacity
             val data = if (variant != null && !variant.isBlank && remainingAmount > 0) {
                 TankFluidStorage.ExistingData(variant, remainingAmount)
             } else {
@@ -188,7 +187,7 @@ class FluidStoragePersistentState(
             val componentAmount = componentBase + componentExtra
             extraTanks -= componentExtra
 
-            val newBucketCap = component.size * DEFAULT_BUCKET_CAPACITY
+            val newBucketCap = component.size * defaultBucketCapacity
             val data = if (variant != null && !variant.isBlank && componentAmount > 0) {
                 TankFluidStorage.ExistingData(variant, componentAmount)
             } else {
@@ -236,7 +235,8 @@ class FluidStoragePersistentState(
             BlockPos(0, -1, 0),
             BlockPos(0, 1, 0),
         )
-        private const val DEFAULT_BUCKET_CAPACITY = 32
+        private val defaultBucketCapacity: Int
+            get() = CTServerConfig.instance.tankBucketCapacity
 
         val CODEC: Codec<FluidStoragePersistentState> = RecordCodecBuilder.create {
             it.group(

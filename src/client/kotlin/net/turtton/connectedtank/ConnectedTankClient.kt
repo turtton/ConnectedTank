@@ -1,16 +1,37 @@
 package net.turtton.connectedtank
 
 import net.fabricmc.api.ClientModInitializer
+import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents
+import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking
 import net.fabricmc.fabric.api.client.rendering.v1.BlockRenderLayerMap
 import net.minecraft.client.render.BlockRenderLayer
 import net.minecraft.client.render.block.entity.BlockEntityRendererFactories
 import net.turtton.connectedtank.block.CTBlockEntityTypes
 import net.turtton.connectedtank.block.CTBlocks
 import net.turtton.connectedtank.block.ConnectedTankBlockEntityRenderer
+import net.turtton.connectedtank.config.CTClientConfig
+import net.turtton.connectedtank.config.CTServerConfig
+import net.turtton.connectedtank.config.SyncedServerConfig
+import net.turtton.connectedtank.network.ConfigSyncPayload
 
 object ConnectedTankClient : ClientModInitializer {
     override fun onInitializeClient() {
+        CTClientConfig.load()
+
         BlockRenderLayerMap.putBlock(CTBlocks.CONNECTED_TANK, BlockRenderLayer.CUTOUT)
         BlockEntityRendererFactories.register(CTBlockEntityTypes.CONNECTED_TANK, ::ConnectedTankBlockEntityRenderer)
+
+        ClientPlayNetworking.registerGlobalReceiver(ConfigSyncPayload.ID) { payload, _ ->
+            SyncedServerConfig.syncedConfig = CTServerConfig(
+                tankBucketCapacity = payload.tankBucketCapacity.coerceIn(
+                    1,
+                    CTServerConfig.MAX_BUCKET_CAPACITY,
+                ),
+            )
+        }
+
+        ClientPlayConnectionEvents.DISCONNECT.register { _, _ ->
+            SyncedServerConfig.syncedConfig = null
+        }
     }
 }
