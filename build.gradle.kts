@@ -115,6 +115,9 @@ dependencies {
     modImplementation(libs.fabric.api)
     modImplementation(libs.fabric.language.kotlin)
 
+    "productionRuntimeMods"(libs.fabric.api)
+    "productionRuntimeMods"(libs.fabric.language.kotlin)
+
     modCompileOnly(libs.yacl)
     modRuntimeOnly(libs.yacl)
     modCompileOnly(libs.modmenu)
