@@ -1,0 +1,17 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "G": "minecraft:glass",
+    "P": "#minecraft:planks"
+  },
+  "pattern": [
+    "PGP",
+    "GPG",
+    "PGP"
+  ],
+  "result": {
+    "count": 1,
+    "id": "connectedtank:connected_tank"
+  }
+}
