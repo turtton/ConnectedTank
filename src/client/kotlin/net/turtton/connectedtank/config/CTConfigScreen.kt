@@ -4,6 +4,7 @@ import com.terraformersmc.modmenu.api.ConfigScreenFactory
 import com.terraformersmc.modmenu.api.ModMenuApi
 import net.minecraft.client.gui.screen.Screen
 import net.turtton.connectedtank.ConnectedTank
+import net.turtton.connectedtank.network.ConfigSyncPayload
 
 class CTConfigScreen : ModMenuApi {
     override fun getModConfigScreenFactory(): ConfigScreenFactory<*> = ConfigScreenFactory { parent ->
@@ -84,6 +85,9 @@ private object CTConfigScreenBuilder {
             .save {
                 if (!isExternalServer) {
                     CTServerConfig.instance.save()
+                    client.server?.let { server ->
+                        server.execute { ConfigSyncPayload.broadcastToAll(server) }
+                    }
                 }
                 CTClientConfig.instance.save()
             }
