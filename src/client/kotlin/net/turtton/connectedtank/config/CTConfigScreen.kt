@@ -85,7 +85,9 @@ private object CTConfigScreenBuilder {
             .save {
                 if (!isExternalServer) {
                     CTServerConfig.instance.save()
-                    client.server?.let { ConfigSyncPayload.broadcastToAll(it) }
+                    client.server?.let { server ->
+                        server.execute { ConfigSyncPayload.broadcastToAll(server) }
+                    }
                 }
                 CTClientConfig.instance.save()
             }
