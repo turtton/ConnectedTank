@@ -1,0 +1,17 @@
+{
+  "type": "connectedtank:tank_upgrade",
+  "category": "misc",
+  "key": {
+    "M": "#minecraft:planks",
+    "T": "connectedtank:connected_tank"
+  },
+  "pattern": [
+    "MMM",
+    "MTM",
+    "MMM"
+  ],
+  "result": {
+    "count": 1,
+    "id": "connectedtank:wood_connected_tank"
+  }
+}

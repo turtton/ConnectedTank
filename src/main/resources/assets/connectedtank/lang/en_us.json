@@ -1,4 +1,12 @@
 {
+  "block.connectedtank.connected_tank": "Connected Tank",
+  "block.connectedtank.wood_connected_tank": "Wooden Connected Tank",
+  "block.connectedtank.stone_connected_tank": "Stone Connected Tank",
+  "block.connectedtank.copper_connected_tank": "Copper Connected Tank",
+  "block.connectedtank.iron_connected_tank": "Iron Connected Tank",
+  "block.connectedtank.gold_connected_tank": "Golden Connected Tank",
+  "block.connectedtank.diamond_connected_tank": "Diamond Connected Tank",
+  "block.connectedtank.netherite_connected_tank": "Netherite Connected Tank",
   "config.connectedtank.title": "ConnectedTank Config",
   "config.connectedtank.category.server": "Server",
   "config.connectedtank.category.client": "Client",

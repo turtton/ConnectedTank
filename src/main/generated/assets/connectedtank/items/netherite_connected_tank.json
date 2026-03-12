@@ -1,0 +1,6 @@
+{
+  "model": {
+    "type": "minecraft:model",
+    "model": "connectedtank:item/netherite_connected_tank"
+  }
+}

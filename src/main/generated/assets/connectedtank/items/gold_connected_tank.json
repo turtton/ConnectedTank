@@ -1,0 +1,6 @@
+{
+  "model": {
+    "type": "minecraft:model",
+    "model": "connectedtank:item/gold_connected_tank"
+  }
+}

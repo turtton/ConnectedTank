@@ -23,29 +23,30 @@ import net.minecraft.util.math.BlockPos
 import net.minecraft.util.math.Direction
 import net.minecraft.world.World
 import net.turtton.connectedtank.component.CTDataComponentTypes
+import net.turtton.connectedtank.config.CTServerConfig
 import net.turtton.connectedtank.world.FluidStoragePersistentState
 
-class ConnectedTankBlock(settings: Settings) :
+class ConnectedTankBlock(val tier: TankTier, settings: Settings) :
     Block(settings),
     BlockEntityProvider {
     private val pendingDropData = ConcurrentHashMap<BlockPos, TankFluidStorage.ExistingData>()
 
     override fun createBlockEntity(pos: BlockPos, state: BlockState): BlockEntity = ConnectedTankBlockEntity(pos, state)
 
-    override fun isSideInvisible(state: BlockState, stateFrom: BlockState, direction: Direction): Boolean = stateFrom.isOf(this) || super.isSideInvisible(state, stateFrom, direction)
+    override fun isSideInvisible(state: BlockState, stateFrom: BlockState, direction: Direction): Boolean = CTBlocks.isConnectedTank(stateFrom.block) || super.isSideInvisible(state, stateFrom, direction)
 
     override fun onStateReplaced(state: BlockState, world: ServerWorld, pos: BlockPos, moved: Boolean) {
         val persistentState = world.persistentStateManager.getOrCreate(FluidStoragePersistentState.TYPE)
         val neighborPositions = FluidStoragePersistentState.ADJACENT_OFFSETS
             .map { pos.add(it) }
-            .filter { world.getBlockState(it).isOf(this) }
+            .filter { CTBlocks.isConnectedTank(world.getBlockState(it).block) }
 
         if (!pendingDropData.containsKey(pos)) {
-            val fluidData = persistentState.removeStorage(pos)
+            val fluidData = persistentState.removeStorage(pos, world)
             if (fluidData != null) pendingDropData[pos] = fluidData
         } else {
             pendingDropData.remove(pos)
-            persistentState.removeStorage(pos)
+            persistentState.removeStorage(pos, world)
         }
 
         for (neighborPos in neighborPositions) {
@@ -88,11 +89,9 @@ class ConnectedTankBlock(settings: Settings) :
         if (world is ServerWorld && pos != null) {
             val persistentState = world.persistentStateManager.getOrCreate(FluidStoragePersistentState.TYPE)
             val fluidData = itemStack?.get(CTDataComponentTypes.TANK_FLUID)
-            val tankStorage = if (fluidData != null) {
-                TankFluidStorage(fluid = fluidData)
-            } else {
-                TankFluidStorage()
-            }
+            val block = world.getBlockState(pos).block as? ConnectedTankBlock
+            val capacity = block?.tier?.bucketCapacity ?: CTServerConfig.instance.tankBucketCapacity
+            val tankStorage = TankFluidStorage(capacity, fluidData)
             persistentState.addStorage(pos, tankStorage)
             CTBlocks.syncGroupBlockEntities(world, pos, persistentState)
         }

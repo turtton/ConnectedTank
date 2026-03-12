@@ -1,4 +1,12 @@
 {
+  "block.connectedtank.connected_tank": "接続タンク",
+  "block.connectedtank.wood_connected_tank": "木の接続タンク",
+  "block.connectedtank.stone_connected_tank": "石の接続タンク",
+  "block.connectedtank.copper_connected_tank": "銅の接続タンク",
+  "block.connectedtank.iron_connected_tank": "鉄の接続タンク",
+  "block.connectedtank.gold_connected_tank": "金の接続タンク",
+  "block.connectedtank.diamond_connected_tank": "ダイヤモンドの接続タンク",
+  "block.connectedtank.netherite_connected_tank": "ネザライトの接続タンク",
   "config.connectedtank.title": "ConnectedTank 設定",
   "config.connectedtank.category.server": "サーバー",
   "config.connectedtank.category.client": "クライアント",

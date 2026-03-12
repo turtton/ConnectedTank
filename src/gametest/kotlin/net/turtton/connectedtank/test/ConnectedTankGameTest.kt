@@ -12,7 +12,10 @@ import net.minecraft.text.Text
 import net.minecraft.util.math.BlockPos
 import net.minecraft.util.math.Direction
 import net.minecraft.world.GameMode
+import net.turtton.connectedtank.block.CTBlocks
+import net.turtton.connectedtank.block.ConnectedTankBlock
 import net.turtton.connectedtank.block.TankFluidStorage
+import net.turtton.connectedtank.block.TankTier
 import net.turtton.connectedtank.config.CTServerConfig
 import net.turtton.connectedtank.item.CTItems
 import net.turtton.connectedtank.world.FluidStoragePersistentState
@@ -24,12 +27,16 @@ object ConnectedTankGameTest {
      * useStackOnBlock で指定位置にタンクを設置する。
      * 足場として 1 つ下にブロックを置き、その UP 面をクリックする。
      * @param tankPos タンクを置きたい相対座標 (y >= 2)
+     * @param tier 設置するタンクのティア (デフォルト BASE)
      */
-    private fun TestContext.placeTank(tankPos: BlockPos) {
+    private fun TestContext.placeTank(tankPos: BlockPos, tier: TankTier = TankTier.BASE) {
         val basePos = tankPos.down()
         setBlockState(basePos, Blocks.STONE)
         val player = createMockPlayer(GameMode.SURVIVAL)
-        val stack = ItemStack(CTItems.CONNECTED_TANK)
+        val item = CTItems.ALL_TANK_ITEMS.first {
+            (CTBlocks.ALL_TANKS[CTItems.ALL_TANK_ITEMS.indexOf(it)] as? ConnectedTankBlock)?.tier == tier
+        }
+        val stack = ItemStack(item)
         useStackOnBlock(player, stack, basePos.down(), Direction.UP)
     }
 
@@ -80,7 +87,7 @@ object ConnectedTankGameTest {
         context.placeTank(pos2)
 
         val state = context.getFluidState()
-        state.removeStorage(context.getAbsolutePos(pos2))
+        state.removeStorage(context.getAbsolutePos(pos2), context.getWorld())
 
         val remaining = state.getStorage(context.getAbsolutePos(pos1))
         context.assertTrue(remaining != null, Text.literal("Remaining storage should exist"))
@@ -145,7 +152,7 @@ object ConnectedTankGameTest {
         val absPos = context.getAbsolutePos(tankPos)
         context.assertTrue(state.getStorage(absPos) != null, Text.literal("Storage should exist"))
 
-        state.removeStorage(absPos)
+        state.removeStorage(absPos, context.getWorld())
         context.assertTrue(state.getStorage(absPos) == null, Text.literal("Storage should be removed"))
         context.complete()
     }
@@ -297,7 +304,7 @@ object ConnectedTankGameTest {
             Text.literal("3 tanks should have ${CTServerConfig.DEFAULT_BUCKET_CAPACITY * 3} bucket capacity"),
         )
 
-        state.removeStorage(context.getAbsolutePos(posM))
+        state.removeStorage(context.getAbsolutePos(posM), context.getWorld())
 
         val sL = state.getStorage(context.getAbsolutePos(posL))
         val sR = state.getStorage(context.getAbsolutePos(posR))
@@ -326,7 +333,7 @@ object ConnectedTankGameTest {
         context.placeTank(posB)
 
         val state = context.getFluidState()
-        state.removeStorage(context.getAbsolutePos(posCorner))
+        state.removeStorage(context.getAbsolutePos(posCorner), context.getWorld())
 
         val sA = state.getStorage(context.getAbsolutePos(posA))
         val sB = state.getStorage(context.getAbsolutePos(posB))
@@ -349,7 +356,7 @@ object ConnectedTankGameTest {
         context.placeTank(pos11)
 
         val state = context.getFluidState()
-        state.removeStorage(context.getAbsolutePos(pos11))
+        state.removeStorage(context.getAbsolutePos(pos11), context.getWorld())
 
         val s00 = state.getStorage(context.getAbsolutePos(pos00))
         val s10 = state.getStorage(context.getAbsolutePos(pos10))
@@ -384,7 +391,7 @@ object ConnectedTankGameTest {
             tx.commit()
         }
 
-        val removedData = state.removeStorage(context.getAbsolutePos(posM))
+        val removedData = state.removeStorage(context.getAbsolutePos(posM), context.getWorld())
 
         context.assertTrue(removedData != null, Text.literal("Removed data should not be null"))
         context.assertTrue(
@@ -424,7 +431,7 @@ object ConnectedTankGameTest {
             tx.commit()
         }
 
-        val removedData = state.removeStorage(context.getAbsolutePos(posM))
+        val removedData = state.removeStorage(context.getAbsolutePos(posM), context.getWorld())
 
         // perTank = 810002/3 = 270000, remainder = 810002%3 = 2 > 0 → removedShare = 270001
         val expectedRemoved = 270001L
@@ -469,7 +476,7 @@ object ConnectedTankGameTest {
             tx.commit()
         }
 
-        val removedData = state.removeStorage(context.getAbsolutePos(pos2))
+        val removedData = state.removeStorage(context.getAbsolutePos(pos2), context.getWorld())
 
         context.assertTrue(removedData != null, Text.literal("Removed data should not be null"))
         context.assertTrue(
@@ -500,7 +507,7 @@ object ConnectedTankGameTest {
             tx.commit()
         }
 
-        val result = state.removeStorage(context.getAbsolutePos(tankPos))
+        val result = state.removeStorage(context.getAbsolutePos(tankPos), context.getWorld())
         context.assertTrue(result != null, Text.literal("Should return ExistingData"))
         context.assertTrue(result!!.variant == water, Text.literal("Variant should be water"))
         context.assertTrue(
@@ -516,7 +523,7 @@ object ConnectedTankGameTest {
         context.placeTank(tankPos)
 
         val state = context.getFluidState()
-        val result = state.removeStorage(context.getAbsolutePos(tankPos))
+        val result = state.removeStorage(context.getAbsolutePos(tankPos), context.getWorld())
         context.assertTrue(result == null, Text.literal("Empty tank should return null"))
         context.complete()
     }
@@ -569,6 +576,79 @@ object ConnectedTankGameTest {
             Text.literal("Merged amount should be 5 buckets but was ${merged.amount / FluidConstants.BUCKET}"),
         )
         context.assertTrue(merged.variant == water, Text.literal("Variant should be water"))
+        context.complete()
+    }
+
+    // === ティア別容量テスト ===
+
+    @GameTest
+    fun tierCapacityMatchesMultiplier(context: TestContext) {
+        val tankPos = BlockPos(0, 2, 0)
+        context.placeTank(tankPos, TankTier.IRON)
+
+        val state = context.getFluidState()
+        val storage = state.getStorage(context.getAbsolutePos(tankPos))
+        val expectedCapacity = CTServerConfig.instance.getTierCapacity(TankTier.IRON)
+        context.assertTrue(storage != null, Text.literal("Storage should exist"))
+        context.assertTrue(
+            storage!!.bucketCapacity == expectedCapacity,
+            Text.literal("Iron tank capacity should be $expectedCapacity but was ${storage.bucketCapacity}"),
+        )
+        context.complete()
+    }
+
+    @GameTest
+    fun differentTiersConnect(context: TestContext) {
+        val pos1 = BlockPos(0, 2, 0)
+        val pos2 = BlockPos(1, 2, 0)
+        context.placeTank(pos1, TankTier.BASE)
+        context.placeTank(pos2, TankTier.IRON)
+
+        val state = context.getFluidState()
+        val storage1 = state.getStorage(context.getAbsolutePos(pos1))
+        val storage2 = state.getStorage(context.getAbsolutePos(pos2))
+        context.assertTrue(storage1 != null, Text.literal("Storage1 should exist"))
+        context.assertTrue(storage2 != null, Text.literal("Storage2 should exist"))
+        context.assertTrue(
+            storage1 === storage2,
+            Text.literal("Different tier tanks should share storage when adjacent"),
+        )
+        val expectedCapacity = CTServerConfig.instance.getTierCapacity(TankTier.BASE) +
+            CTServerConfig.instance.getTierCapacity(TankTier.IRON)
+        context.assertTrue(
+            storage1!!.bucketCapacity == expectedCapacity,
+            Text.literal("Combined capacity should be $expectedCapacity but was ${storage1.bucketCapacity}"),
+        )
+        context.complete()
+    }
+
+    @GameTest
+    fun splitDifferentTiersRecalculatesCapacity(context: TestContext) {
+        // BASE - IRON - BASE → IRON を破壊 → BASE 2 つに分断
+        val posL = BlockPos(0, 2, 0)
+        val posM = BlockPos(1, 2, 0)
+        val posR = BlockPos(2, 2, 0)
+        context.placeTank(posL, TankTier.BASE)
+        context.placeTank(posM, TankTier.IRON)
+        context.placeTank(posR, TankTier.BASE)
+
+        val state = context.getFluidState()
+        state.removeStorage(context.getAbsolutePos(posM), context.getWorld())
+
+        val sL = state.getStorage(context.getAbsolutePos(posL))
+        val sR = state.getStorage(context.getAbsolutePos(posR))
+        context.assertTrue(sL != null, Text.literal("Left storage should exist"))
+        context.assertTrue(sR != null, Text.literal("Right storage should exist"))
+        context.assertTrue(sL !== sR, Text.literal("Should be separate groups"))
+        val baseCap = CTServerConfig.instance.getTierCapacity(TankTier.BASE)
+        context.assertTrue(
+            sL!!.bucketCapacity == baseCap,
+            Text.literal("Left capacity should be $baseCap but was ${sL.bucketCapacity}"),
+        )
+        context.assertTrue(
+            sR!!.bucketCapacity == baseCap,
+            Text.literal("Right capacity should be $baseCap but was ${sR.bucketCapacity}"),
+        )
         context.complete()
     }
 }

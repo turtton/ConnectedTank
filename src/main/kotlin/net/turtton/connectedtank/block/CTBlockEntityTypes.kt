@@ -11,7 +11,7 @@ object CTBlockEntityTypes {
         Registry.register(
             Registries.BLOCK_ENTITY_TYPE,
             ModIdentifier("connected_tank"),
-            FabricBlockEntityTypeBuilder.create(::ConnectedTankBlockEntity, CTBlocks.CONNECTED_TANK).build(),
+            FabricBlockEntityTypeBuilder.create(::ConnectedTankBlockEntity, *CTBlocks.ALL_TANKS.toTypedArray()).build(),
         )
 
     fun init() {}

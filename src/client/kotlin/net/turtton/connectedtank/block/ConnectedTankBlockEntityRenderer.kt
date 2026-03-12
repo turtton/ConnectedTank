@@ -38,14 +38,13 @@ class ConnectedTankBlockEntityRenderer(
 
         val world = entity.world
         val pos = entity.pos
-        val tankBlock = CTBlocks.CONNECTED_TANK
 
-        val hasDown = world?.getBlockState(pos.down())?.isOf(tankBlock) == true
-        val hasUp = world?.getBlockState(pos.up())?.isOf(tankBlock) == true
-        val hasNorth = world?.getBlockState(pos.north())?.isOf(tankBlock) == true
-        val hasSouth = world?.getBlockState(pos.south())?.isOf(tankBlock) == true
-        val hasWest = world?.getBlockState(pos.west())?.isOf(tankBlock) == true
-        val hasEast = world?.getBlockState(pos.east())?.isOf(tankBlock) == true
+        val hasDown = world?.getBlockState(pos.down())?.block?.let(CTBlocks::isConnectedTank) == true
+        val hasUp = world?.getBlockState(pos.up())?.block?.let(CTBlocks::isConnectedTank) == true
+        val hasNorth = world?.getBlockState(pos.north())?.block?.let(CTBlocks::isConnectedTank) == true
+        val hasSouth = world?.getBlockState(pos.south())?.block?.let(CTBlocks::isConnectedTank) == true
+        val hasWest = world?.getBlockState(pos.west())?.block?.let(CTBlocks::isConnectedTank) == true
+        val hasEast = world?.getBlockState(pos.east())?.block?.let(CTBlocks::isConnectedTank) == true
 
         val minX = if (hasWest) 0f else INSET
         val maxX = if (hasEast) 1f else 1f - INSET
@@ -58,13 +57,13 @@ class ConnectedTankBlockEntityRenderer(
 
             var blocksBelow = 0
             var p = pos.down()
-            while (world.getBlockState(p).isOf(tankBlock)) {
+            while (CTBlocks.isConnectedTank(world.getBlockState(p).block)) {
                 blocksBelow++
                 p = p.down()
             }
             var blocksAbove = 0
             p = pos.up()
-            while (world.getBlockState(p).isOf(tankBlock)) {
+            while (CTBlocks.isConnectedTank(world.getBlockState(p).block)) {
                 blocksAbove++
                 p = p.up()
             }
