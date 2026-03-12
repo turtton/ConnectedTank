@@ -1,0 +1,17 @@
+{
+  "type": "connectedtank:tank_upgrade",
+  "category": "misc",
+  "key": {
+    "M": "#minecraft:stone_crafting_materials",
+    "T": "connectedtank:connected_tank"
+  },
+  "pattern": [
+    "MMM",
+    "MTM",
+    "MMM"
+  ],
+  "result": {
+    "count": 1,
+    "id": "connectedtank:stone_connected_tank"
+  }
+}

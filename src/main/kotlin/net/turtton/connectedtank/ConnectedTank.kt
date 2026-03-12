@@ -7,6 +7,7 @@ import net.turtton.connectedtank.component.CTDataComponentTypes
 import net.turtton.connectedtank.config.CTServerConfig
 import net.turtton.connectedtank.item.CTItems
 import net.turtton.connectedtank.network.ConfigSyncPayload
+import net.turtton.connectedtank.recipe.CTRecipeSerializers
 import org.slf4j.LoggerFactory
 
 object ConnectedTank : ModInitializer {
@@ -18,6 +19,7 @@ object ConnectedTank : ModInitializer {
         CTBlocks.init()
         CTBlockEntityTypes.init()
         CTItems.init()
+        CTRecipeSerializers.init()
         ConfigSyncPayload.registerServer()
     }
 }

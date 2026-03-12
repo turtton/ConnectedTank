@@ -1,0 +1,7 @@
+{
+  "variants": {
+    "": {
+      "model": "connectedtank:block/copper_connected_tank"
+    }
+  }
+}

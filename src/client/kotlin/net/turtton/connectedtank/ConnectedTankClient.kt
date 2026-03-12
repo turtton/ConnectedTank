@@ -18,7 +18,7 @@ object ConnectedTankClient : ClientModInitializer {
     override fun onInitializeClient() {
         CTClientConfig.load()
 
-        BlockRenderLayerMap.putBlock(CTBlocks.CONNECTED_TANK, BlockRenderLayer.CUTOUT)
+        CTBlocks.ALL_TANKS.forEach { BlockRenderLayerMap.putBlock(it, BlockRenderLayer.CUTOUT) }
         BlockEntityRendererFactories.register(CTBlockEntityTypes.CONNECTED_TANK, ::ConnectedTankBlockEntityRenderer)
 
         ClientPlayNetworking.registerGlobalReceiver(ConfigSyncPayload.ID) { payload, _ ->
@@ -27,6 +27,7 @@ object ConnectedTankClient : ClientModInitializer {
                     1,
                     CTServerConfig.MAX_BUCKET_CAPACITY,
                 ),
+                tierMultipliers = payload.tierMultipliers.toMutableMap(),
             )
         }
 

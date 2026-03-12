@@ -3,11 +3,13 @@ package net.turtton.connectedtank.world
 import com.mojang.serialization.Codec
 import com.mojang.serialization.codecs.RecordCodecBuilder
 import java.util.UUID
+import net.minecraft.server.world.ServerWorld
 import net.minecraft.util.Uuids
 import net.minecraft.util.math.BlockPos
 import net.minecraft.world.PersistentState
 import net.minecraft.world.PersistentStateType
 import net.turtton.connectedtank.MOD_ID
+import net.turtton.connectedtank.block.ConnectedTankBlock
 import net.turtton.connectedtank.block.TankFluidStorage
 import net.turtton.connectedtank.config.CTServerConfig
 
@@ -92,7 +94,7 @@ class FluidStoragePersistentState(
         return positionalStorageMap.values.count { it == uuid }
     }
 
-    fun removeStorage(pos: BlockPos): TankFluidStorage.ExistingData? {
+    fun removeStorage(pos: BlockPos, world: ServerWorld? = null): TankFluidStorage.ExistingData? {
         val uuid = positionalStorageMap.remove(pos) ?: return null
         val existing = storageMap[uuid]
         val variant = existing?.variant
@@ -124,7 +126,7 @@ class FluidStoragePersistentState(
 
         if (components.size == 1) {
             // 分断なし
-            val newBucketCap = groupPositions.size * defaultBucketCapacity
+            val newBucketCap = computeGroupCapacity(groupPositions, world)
             val data = if (variant != null && !variant.isBlank && remainingAmount > 0) {
                 TankFluidStorage.ExistingData(variant, remainingAmount)
             } else {
@@ -133,7 +135,7 @@ class FluidStoragePersistentState(
             storageMap[uuid] = TankFluidStorage(newBucketCap, data).also { it.onChanged = ::markDirty }
         } else {
             // 分断あり: 液体を均等分配
-            splitIntoComponents(components, uuid, variant, remainingAmount, groupPositions.size)
+            splitIntoComponents(components, uuid, variant, remainingAmount, groupPositions.size, world)
         }
 
         markDirty()
@@ -168,12 +170,29 @@ class FluidStoragePersistentState(
         return components
     }
 
+    private fun computeGroupCapacity(positions: List<BlockPos>, world: ServerWorld?): Int = if (world != null) {
+        positions.sumOf { p ->
+            (world.getBlockState(p).block as? ConnectedTankBlock)?.tier?.bucketCapacity ?: defaultBucketCapacity
+        }
+    } else {
+        positions.size * defaultBucketCapacity
+    }
+
+    private fun computeGroupCapacity(positions: Set<BlockPos>, world: ServerWorld?): Int = if (world != null) {
+        positions.sumOf { p ->
+            (world.getBlockState(p).block as? ConnectedTankBlock)?.tier?.bucketCapacity ?: defaultBucketCapacity
+        }
+    } else {
+        positions.size * defaultBucketCapacity
+    }
+
     private fun splitIntoComponents(
         components: List<Set<BlockPos>>,
         originalUuid: UUID,
         variant: net.fabricmc.fabric.api.transfer.v1.fluid.FluidVariant?,
         remainingAmount: Long,
         remainingTanks: Int,
+        world: ServerWorld?,
     ) {
         val basePerTank = remainingAmount / remainingTanks
         var extraTanks = (remainingAmount % remainingTanks).toInt()
@@ -187,7 +206,7 @@ class FluidStoragePersistentState(
             val componentAmount = componentBase + componentExtra
             extraTanks -= componentExtra
 
-            val newBucketCap = component.size * defaultBucketCapacity
+            val newBucketCap = computeGroupCapacity(component, world)
             val data = if (variant != null && !variant.isBlank && componentAmount > 0) {
                 TankFluidStorage.ExistingData(variant, componentAmount)
             } else {

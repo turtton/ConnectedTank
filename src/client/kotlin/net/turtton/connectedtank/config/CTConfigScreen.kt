@@ -4,6 +4,7 @@ import com.terraformersmc.modmenu.api.ConfigScreenFactory
 import com.terraformersmc.modmenu.api.ModMenuApi
 import net.minecraft.client.gui.screen.Screen
 import net.turtton.connectedtank.ConnectedTank
+import net.turtton.connectedtank.block.TankTier
 import net.turtton.connectedtank.network.ConfigSyncPayload
 
 class CTConfigScreen : ModMenuApi {
@@ -68,14 +69,38 @@ private object CTConfigScreenBuilder {
             }
             .build()
 
+        val tierMultiplierOptions = TankTier.entries.map { tier ->
+            dev.isxander.yacl3.api.Option.createBuilder<Int>()
+                .name(net.minecraft.text.Text.literal("${tier.name} multiplier"))
+                .description(
+                    dev.isxander.yacl3.api.OptionDescription.of(
+                        net.minecraft.text.Text.literal("Capacity multiplier for ${tier.name} tier (default: ${tier.defaultMultiplier})"),
+                    ),
+                )
+                .binding(
+                    tier.defaultMultiplier,
+                    { serverConfig.tierMultipliers.getOrDefault(tier.name, tier.defaultMultiplier) },
+                    { if (!isExternalServer) serverConfig.tierMultipliers[tier.name] = it },
+                )
+                .controller { option ->
+                    dev.isxander.yacl3.api.controller.IntegerSliderControllerBuilder.create(option)
+                        .range(1, 64)
+                        .step(1)
+                }
+                .available(!isExternalServer)
+                .build()
+        }
+
+        val serverCategoryBuilder = dev.isxander.yacl3.api.ConfigCategory.createBuilder()
+            .name(net.minecraft.text.Text.translatable("config.connectedtank.category.server"))
+            .option(tankCapacityOption)
+        for (option in tierMultiplierOptions) {
+            serverCategoryBuilder.option(option)
+        }
+
         return dev.isxander.yacl3.api.YetAnotherConfigLib.createBuilder()
             .title(net.minecraft.text.Text.translatable("config.connectedtank.title"))
-            .category(
-                dev.isxander.yacl3.api.ConfigCategory.createBuilder()
-                    .name(net.minecraft.text.Text.translatable("config.connectedtank.category.server"))
-                    .option(tankCapacityOption)
-                    .build(),
-            )
+            .category(serverCategoryBuilder.build())
             .category(
                 dev.isxander.yacl3.api.ConfigCategory.createBuilder()
                     .name(net.minecraft.text.Text.translatable("config.connectedtank.category.client"))

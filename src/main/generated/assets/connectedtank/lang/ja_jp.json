@@ -1,0 +1,17 @@
+{
+  "block.connectedtank.connected_tank": "タンク",
+  "block.connectedtank.copper_connected_tank": "銅のタンク",
+  "block.connectedtank.diamond_connected_tank": "ダイヤモンドのタンク",
+  "block.connectedtank.gold_connected_tank": "金のタンク",
+  "block.connectedtank.iron_connected_tank": "鉄のタンク",
+  "block.connectedtank.netherite_connected_tank": "ネザライトのタンク",
+  "block.connectedtank.stone_connected_tank": "石のタンク",
+  "config.connectedtank.category.client": "クライアント",
+  "config.connectedtank.category.server": "サーバー",
+  "config.connectedtank.client.renderQuality": "描画品質",
+  "config.connectedtank.client.renderQuality.description": "タンク内液体の描画品質",
+  "config.connectedtank.server.tankBucketCapacity": "タンクバケツ容量",
+  "config.connectedtank.server.tankBucketCapacity.description": "タンク 1 ブロックあたりのバケツ容量",
+  "config.connectedtank.title": "ConnectedTank 設定",
+  "itemGroup.connectedtank.item_group": "Connected Tank"
+}
