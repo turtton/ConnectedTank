@@ -36,7 +36,7 @@ object CTItems {
 
     private fun registerTank(tier: TankTier): BlockItem {
         val block = CTBlocks.ALL_TANKS.first { (it as? net.turtton.connectedtank.block.ConnectedTankBlock)?.tier == tier }
-        return register(tier.id, { BlockItem(block, it) })
+        return register(tier.id, { BlockItem(block, it) }) { useBlockPrefixedTranslationKey() }
     }
 
     private fun <I : Item> register(
