@@ -1,17 +1,9 @@
 {
-  "type": "connectedtank:tank_upgrade",
-  "category": "misc",
-  "key": {
-    "M": "minecraft:netherite_ingot",
-    "T": "connectedtank:diamond_connected_tank"
-  },
-  "pattern": [
-    "MMM",
-    "MTM",
-    "MMM"
-  ],
+  "type": "minecraft:smithing_transform",
+  "addition": "#minecraft:netherite_tool_materials",
+  "base": "connectedtank:diamond_connected_tank",
   "result": {
-    "count": 1,
     "id": "connectedtank:netherite_connected_tank"
-  }
+  },
+  "template": "minecraft:netherite_upgrade_smithing_template"
 }

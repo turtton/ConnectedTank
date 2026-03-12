@@ -17,9 +17,11 @@ import net.minecraft.client.data.TextureMap
 import net.minecraft.client.data.TexturedModel
 import net.minecraft.data.recipe.RecipeExporter
 import net.minecraft.data.recipe.RecipeGenerator
+import net.minecraft.data.recipe.SmithingTransformRecipeJsonBuilder
 import net.minecraft.item.Item
 import net.minecraft.item.ItemStack
 import net.minecraft.item.Items
+import net.minecraft.recipe.Ingredient
 import net.minecraft.recipe.RawShapedRecipe
 import net.minecraft.recipe.ShapedRecipe
 import net.minecraft.recipe.book.CraftingRecipeCategory
@@ -114,11 +116,22 @@ object ConnectedTankDataGenerator : DataGeneratorEntrypoint {
                     CTBlocks.DIAMOND_CONNECTED_TANK,
                     Items.DIAMOND,
                 )
-                offerTankUpgradeItem(
-                    CTBlocks.DIAMOND_CONNECTED_TANK,
-                    CTBlocks.NETHERITE_CONNECTED_TANK,
-                    Items.NETHERITE_INGOT,
+                // Netherite upgrade uses smithing table
+                val netheriteRecipeKey = RegistryKey.of(
+                    RegistryKeys.RECIPE,
+                    ModIdentifier(
+                        (CTBlocks.NETHERITE_CONNECTED_TANK as net.turtton.connectedtank.block.ConnectedTankBlock).tier.id,
+                    ),
                 )
+                SmithingTransformRecipeJsonBuilder.create(
+                    Ingredient.ofItem(Items.NETHERITE_UPGRADE_SMITHING_TEMPLATE),
+                    Ingredient.ofItem(CTBlocks.DIAMOND_CONNECTED_TANK),
+                    ingredientFromTag(ItemTags.NETHERITE_TOOL_MATERIALS),
+                    RecipeCategory.DECORATIONS,
+                    CTBlocks.NETHERITE_CONNECTED_TANK.asItem(),
+                )
+                    .criterion("has_netherite_ingot", conditionsFromTag(ItemTags.NETHERITE_TOOL_MATERIALS))
+                    .offerTo(exporter, netheriteRecipeKey)
             }
 
             private fun offerTankUpgradeItem(
