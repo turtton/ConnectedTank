@@ -3,7 +3,7 @@
   "category": "misc",
   "key": {
     "M": "#minecraft:stone_crafting_materials",
-    "T": "connectedtank:wood_connected_tank"
+    "T": "connectedtank:connected_tank"
   },
   "pattern": [
     "MMM",

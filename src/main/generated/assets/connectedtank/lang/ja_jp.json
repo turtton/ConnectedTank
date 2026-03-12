@@ -6,7 +6,6 @@
   "block.connectedtank.iron_connected_tank": "鉄のタンク",
   "block.connectedtank.netherite_connected_tank": "ネザライトのタンク",
   "block.connectedtank.stone_connected_tank": "石のタンク",
-  "block.connectedtank.wood_connected_tank": "木のタンク",
   "config.connectedtank.category.client": "クライアント",
   "config.connectedtank.category.server": "サーバー",
   "config.connectedtank.client.renderQuality": "描画品質",
