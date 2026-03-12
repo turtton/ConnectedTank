@@ -7,6 +7,7 @@
   "block.connectedtank.gold_connected_tank": "Golden Connected Tank",
   "block.connectedtank.diamond_connected_tank": "Diamond Connected Tank",
   "block.connectedtank.netherite_connected_tank": "Netherite Connected Tank",
+  "itemGroup.connectedtank.item_group": "Connected Tank",
   "config.connectedtank.title": "ConnectedTank Config",
   "config.connectedtank.category.server": "Server",
   "config.connectedtank.category.client": "Client",

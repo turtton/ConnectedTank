@@ -7,6 +7,7 @@
   "block.connectedtank.gold_connected_tank": "金の接続タンク",
   "block.connectedtank.diamond_connected_tank": "ダイヤモンドの接続タンク",
   "block.connectedtank.netherite_connected_tank": "ネザライトの接続タンク",
+  "itemGroup.connectedtank.item_group": "Connected Tank",
   "config.connectedtank.title": "ConnectedTank 設定",
   "config.connectedtank.category.server": "サーバー",
   "config.connectedtank.category.client": "クライアント",
