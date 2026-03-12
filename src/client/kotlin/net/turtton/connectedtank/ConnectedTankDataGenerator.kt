@@ -87,13 +87,6 @@ object ConnectedTankDataGenerator : DataGeneratorEntrypoint {
                 // Upgrade recipes
                 offerTankUpgrade(
                     CTBlocks.CONNECTED_TANK,
-                    CTBlocks.WOOD_CONNECTED_TANK,
-                    ItemTags.PLANKS,
-                    "has_planks",
-                    conditionsFromTag(ItemTags.PLANKS),
-                )
-                offerTankUpgrade(
-                    CTBlocks.WOOD_CONNECTED_TANK,
                     CTBlocks.STONE_CONNECTED_TANK,
                     ItemTags.STONE_CRAFTING_MATERIALS,
                     "has_stone",
@@ -216,7 +209,6 @@ object ConnectedTankDataGenerator : DataGeneratorEntrypoint {
             builder: TranslationBuilder,
         ) {
             builder.add(CTBlocks.CONNECTED_TANK, "Tank")
-            builder.add(CTBlocks.WOOD_CONNECTED_TANK, "Wooden Tank")
             builder.add(CTBlocks.STONE_CONNECTED_TANK, "Stone Tank")
             builder.add(CTBlocks.COPPER_CONNECTED_TANK, "Copper Tank")
             builder.add(CTBlocks.IRON_CONNECTED_TANK, "Iron Tank")
@@ -249,7 +241,6 @@ object ConnectedTankDataGenerator : DataGeneratorEntrypoint {
             builder: TranslationBuilder,
         ) {
             builder.add(CTBlocks.CONNECTED_TANK, "タンク")
-            builder.add(CTBlocks.WOOD_CONNECTED_TANK, "木のタンク")
             builder.add(CTBlocks.STONE_CONNECTED_TANK, "石のタンク")
             builder.add(CTBlocks.COPPER_CONNECTED_TANK, "銅のタンク")
             builder.add(CTBlocks.IRON_CONNECTED_TANK, "鉄のタンク")

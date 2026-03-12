@@ -15,7 +15,6 @@ import net.turtton.connectedtank.extension.ModIdentifier
 
 object CTItems {
     val CONNECTED_TANK = registerTank(TankTier.BASE)
-    val WOOD_CONNECTED_TANK = registerTank(TankTier.WOOD)
     val STONE_CONNECTED_TANK = registerTank(TankTier.STONE)
     val COPPER_CONNECTED_TANK = registerTank(TankTier.COPPER)
     val IRON_CONNECTED_TANK = registerTank(TankTier.IRON)
@@ -25,7 +24,6 @@ object CTItems {
 
     val ALL_TANK_ITEMS: List<BlockItem> = listOf(
         CONNECTED_TANK,
-        WOOD_CONNECTED_TANK,
         STONE_CONNECTED_TANK,
         COPPER_CONNECTED_TANK,
         IRON_CONNECTED_TANK,

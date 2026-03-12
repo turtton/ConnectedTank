@@ -15,7 +15,6 @@ import net.turtton.connectedtank.world.FluidStoragePersistentState
 
 object CTBlocks {
     val CONNECTED_TANK = register(TankTier.BASE)
-    val WOOD_CONNECTED_TANK = register(TankTier.WOOD)
     val STONE_CONNECTED_TANK = register(TankTier.STONE)
     val COPPER_CONNECTED_TANK = register(TankTier.COPPER)
     val IRON_CONNECTED_TANK = register(TankTier.IRON)
@@ -25,7 +24,6 @@ object CTBlocks {
 
     val ALL_TANKS: List<Block> = listOf(
         CONNECTED_TANK,
-        WOOD_CONNECTED_TANK,
         STONE_CONNECTED_TANK,
         COPPER_CONNECTED_TANK,
         IRON_CONNECTED_TANK,
