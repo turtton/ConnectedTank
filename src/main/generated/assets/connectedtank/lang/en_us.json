@@ -1,0 +1,18 @@
+{
+  "block.connectedtank.connected_tank": "Tank",
+  "block.connectedtank.copper_connected_tank": "Copper Tank",
+  "block.connectedtank.diamond_connected_tank": "Diamond Tank",
+  "block.connectedtank.gold_connected_tank": "Golden Tank",
+  "block.connectedtank.iron_connected_tank": "Iron Tank",
+  "block.connectedtank.netherite_connected_tank": "Netherite Tank",
+  "block.connectedtank.stone_connected_tank": "Stone Tank",
+  "block.connectedtank.wood_connected_tank": "Wooden Tank",
+  "config.connectedtank.category.client": "Client",
+  "config.connectedtank.category.server": "Server",
+  "config.connectedtank.client.renderQuality": "Render Quality",
+  "config.connectedtank.client.renderQuality.description": "Rendering quality for tank fluid display",
+  "config.connectedtank.server.tankBucketCapacity": "Tank Bucket Capacity",
+  "config.connectedtank.server.tankBucketCapacity.description": "Bucket capacity per single tank block",
+  "config.connectedtank.title": "ConnectedTank Config",
+  "itemGroup.connectedtank.item_group": "Connected Tank"
+}
