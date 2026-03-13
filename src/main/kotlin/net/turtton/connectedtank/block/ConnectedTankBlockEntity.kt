@@ -24,14 +24,21 @@ class ConnectedTankBlockEntity(
         private set
     var capacity: Long = 0L
         private set
+    var waveStartTick: Long = 0L
+        private set
 
     val fillLevel: Float
         get() = if (capacity <= 0L) 0f else clamp(0f, 1f, amount.toFloat() / capacity)
 
     fun updateFromStorage(storage: TankFluidStorage) {
+        val variantChanged = fluidVariant != storage.variant
+        val amountChanged = amount != storage.amount
         fluidVariant = storage.variant
         amount = storage.amount
         capacity = storage.bucketCapacity.toLong() * FluidConstants.BUCKET
+        if (variantChanged || amountChanged) {
+            waveStartTick = world?.time ?: 0L
+        }
         markDirty()
         world?.let { w ->
             val state = w.getBlockState(pos)
@@ -43,12 +50,14 @@ class ConnectedTankBlockEntity(
         fluidVariant = view.read("variant", FluidVariant.CODEC).orElse(FluidVariant.blank())
         amount = view.getLong("amount", 0L)
         capacity = view.getLong("capacity", 0L)
+        waveStartTick = view.getLong("waveStartTick", 0L)
     }
 
     override fun writeData(view: WriteView) {
         view.put("variant", FluidVariant.CODEC, fluidVariant)
         view.putLong("amount", amount)
         view.putLong("capacity", capacity)
+        view.putLong("waveStartTick", waveStartTick)
     }
 
     override fun toUpdatePacket(): Packet<ClientPlayPacketListener> = BlockEntityUpdateS2CPacket.create(this)
