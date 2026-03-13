@@ -328,15 +328,15 @@ class ConnectedTankBlockEntityRenderer(
                 val z1g = minZ + rangeZ * (iz + 1).toFloat() / gridSize
                 val topY0 = heightMap[0][iz]
                 val topY1 = heightMap[0][iz + 1]
-                val sv0 = v0 + (v1 - v0) * iz.toFloat() / gridSize
-                val sv1 = v0 + (v1 - v0) * (iz + 1).toFloat() / gridSize
+                val su0 = u0 + (u1 - u0) * iz.toFloat() / gridSize
+                val su1 = u0 + (u1 - u0) * (iz + 1).toFloat() / gridSize
 
                 consumer.quadUV(
                     entry, argb, ov, fullLight,
-                    minX, topY0, z1g, sv1, v0,
-                    minX, topY1, z0, sv0, v0,
-                    minX, minY, z0, sv0, v1,
-                    minX, minY, z1g, sv1, v1,
+                    minX, topY0, z1g, su1, v0,
+                    minX, topY1, z0, su0, v0,
+                    minX, minY, z0, su0, v1,
+                    minX, minY, z1g, su1, v1,
                     -1f, 0f, 0f,
                 )
             }
@@ -349,15 +349,15 @@ class ConnectedTankBlockEntityRenderer(
                 val z1g = minZ + rangeZ * (iz + 1).toFloat() / gridSize
                 val topY0 = heightMap[gridSize][iz]
                 val topY1 = heightMap[gridSize][iz + 1]
-                val sv0 = v0 + (v1 - v0) * iz.toFloat() / gridSize
-                val sv1 = v0 + (v1 - v0) * (iz + 1).toFloat() / gridSize
+                val su0 = u0 + (u1 - u0) * iz.toFloat() / gridSize
+                val su1 = u0 + (u1 - u0) * (iz + 1).toFloat() / gridSize
 
                 consumer.quadUV(
                     entry, argb, ov, fullLight,
-                    maxX, topY0, z0, sv0, v0,
-                    maxX, topY1, z1g, sv1, v0,
-                    maxX, minY, z1g, sv1, v1,
-                    maxX, minY, z0, sv0, v1,
+                    maxX, topY0, z0, su0, v0,
+                    maxX, topY1, z1g, su1, v0,
+                    maxX, minY, z1g, su1, v1,
+                    maxX, minY, z0, su0, v1,
                     1f, 0f, 0f,
                 )
             }
