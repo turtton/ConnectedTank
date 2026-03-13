@@ -101,6 +101,7 @@ class ConnectedTankBlockEntityRenderer(
         val decayFactor = if (quality == RenderQuality.LOW) 0f else max(0f, 1f - elapsedTicks / DECAY_TICKS)
 
         val animTime = worldTime + tickDelta
+        // gridSize は decayFactor == 0 でも変えない。途中で分割数が変わると UV のちらつきが発生するため。
         val gridSize = if (quality == RenderQuality.HIGH) 8 else 4
         val worldX = pos.x.toFloat()
         val worldZ = pos.z.toFloat()
