@@ -10,7 +10,6 @@ import net.fabricmc.loader.api.FabricLoader
 import net.turtton.connectedtank.ConnectedTank
 
 class CTClientConfig(
-    // TODO: ConnectedTankBlockEntityRenderer で使用予定 (#8)
     var renderQuality: RenderQuality = RenderQuality.MEDIUM,
 ) {
     fun save() {

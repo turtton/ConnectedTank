@@ -12,6 +12,7 @@ import net.minecraft.util.math.BlockPos
 import net.minecraft.world.World
 import net.turtton.connectedtank.block.CTBlocks
 import net.turtton.connectedtank.block.TankFluidStorage
+import net.turtton.connectedtank.config.CTClientConfig
 import net.turtton.connectedtank.config.CTServerConfig
 import net.turtton.connectedtank.world.FluidStoragePersistentState
 import org.apache.commons.lang3.function.FailableConsumer
@@ -38,6 +39,14 @@ object ConnectedTankClientGameTest : FabricClientGameTest {
             testHalfWaterTank(context, server)
             testHorizontalConnectedTanks(context, server)
             testVerticalConnectedTanks(context, server)
+        }
+    }
+
+    private fun takeQualityScreenshots(context: ClientGameTestContext, baseName: String) {
+        for (quality in CTClientConfig.RenderQuality.entries) {
+            CTClientConfig.instance.renderQuality = quality
+            context.waitTicks(5)
+            context.takeScreenshot("${baseName}_${quality.name.lowercase()}")
         }
     }
 
@@ -125,7 +134,7 @@ object ConnectedTankClientGameTest : FabricClientGameTest {
         insertFluid(server, basePos, FluidVariant.of(Fluids.WATER), FluidConstants.BUCKET * TANK_CAPACITY)
         context.waitTicks(20)
         setupCamera(context, server, 1.8, -58.5, 1.8, 135f, 50f)
-        context.takeScreenshot("2_full_water_tank")
+        takeQualityScreenshots(context, "2_full_water_tank")
     }
 
     private fun testHalfWaterTank(context: ClientGameTestContext, server: TestServerContext) {
@@ -134,7 +143,7 @@ object ConnectedTankClientGameTest : FabricClientGameTest {
         insertFluid(server, basePos, FluidVariant.of(Fluids.WATER), FluidConstants.BUCKET * TANK_CAPACITY / 2)
         context.waitTicks(20)
         setupCamera(context, server, 1.8, -58.5, 1.8, 135f, 50f)
-        context.takeScreenshot("3_half_water_tank")
+        takeQualityScreenshots(context, "3_half_water_tank")
     }
 
     private fun testHorizontalConnectedTanks(context: ClientGameTestContext, server: TestServerContext) {
@@ -146,7 +155,7 @@ object ConnectedTankClientGameTest : FabricClientGameTest {
         insertFluid(server, pos1, FluidVariant.of(Fluids.WATER), FluidConstants.BUCKET * TANK_CAPACITY * 2)
         context.waitTicks(20)
         setupCamera(context, server, 2.5, -58.5, 2.5, 135f, 45f)
-        context.takeScreenshot("4_horizontal_connected_tanks")
+        takeQualityScreenshots(context, "4_horizontal_connected_tanks")
     }
 
     private fun testVerticalConnectedTanks(context: ClientGameTestContext, server: TestServerContext) {
@@ -158,6 +167,6 @@ object ConnectedTankClientGameTest : FabricClientGameTest {
         insertFluid(server, pos1, FluidVariant.of(Fluids.WATER), FluidConstants.BUCKET * TANK_CAPACITY * 2)
         context.waitTicks(20)
         setupCamera(context, server, 1.8, -57.0, 1.8, 135f, 45f)
-        context.takeScreenshot("5_vertical_connected_tanks")
+        takeQualityScreenshots(context, "5_vertical_connected_tanks")
     }
 }
