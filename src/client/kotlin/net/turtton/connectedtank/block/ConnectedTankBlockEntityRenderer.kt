@@ -100,95 +100,19 @@ class ConnectedTankBlockEntityRenderer(
         val elapsedTicks = worldTime - entity.waveStartTick.toFloat()
         val decayFactor = if (quality == RenderQuality.LOW) 0f else max(0f, 1f - elapsedTicks / DECAY_TICKS)
 
-        if (decayFactor <= 0f) {
-            renderStaticFluid(
-                consumer, entry, sprite, argb, fluidTop,
-                minX, maxX, minY, minZ, maxZ,
-                hasUp, hasDown, hasNorth, hasSouth, hasWest, hasEast,
-            )
-        } else {
-            val animTime = worldTime + tickDelta
-            val gridSize = if (quality == RenderQuality.HIGH) 8 else 4
-            val worldX = pos.x.toFloat()
-            val worldZ = pos.z.toFloat()
-            val useWorldCoords = quality == RenderQuality.HIGH
-            renderAnimatedFluid(
-                consumer, entry, sprite, argb, fluidTop, animTime,
-                gridSize, useWorldCoords, worldX, worldZ, decayFactor,
-                minX, maxX, minY, minZ, maxZ,
-                hasUp, hasDown, hasNorth, hasSouth, hasWest, hasEast,
-            )
-        }
+        val animTime = worldTime + tickDelta
+        val gridSize = if (quality == RenderQuality.HIGH) 8 else 4
+        val worldX = pos.x.toFloat()
+        val worldZ = pos.z.toFloat()
+        val useWorldCoords = quality == RenderQuality.HIGH
+        renderAnimatedFluid(
+            consumer, entry, sprite, argb, fluidTop, animTime,
+            gridSize, useWorldCoords, worldX, worldZ, decayFactor,
+            minX, maxX, minY, minZ, maxZ,
+            hasUp, hasDown, hasNorth, hasSouth, hasWest, hasEast,
+        )
 
         matrices.pop()
-    }
-
-    private fun renderStaticFluid(
-        consumer: VertexConsumer,
-        entry: MatrixStack.Entry,
-        sprite: Sprite,
-        argb: Int,
-        fluidTop: Float,
-        minX: Float,
-        maxX: Float,
-        minY: Float,
-        minZ: Float,
-        maxZ: Float,
-        hasUp: Boolean,
-        hasDown: Boolean,
-        hasNorth: Boolean,
-        hasSouth: Boolean,
-        hasWest: Boolean,
-        hasEast: Boolean,
-    ) {
-        val fullLight = LightmapTextureManager.MAX_LIGHT_COORDINATE
-        val ov = OverlayTexture.DEFAULT_UV
-        val u0 = sprite.minU
-        val u1 = sprite.maxU
-        val v0 = sprite.minV
-        val v1 = sprite.maxV
-
-        fun VertexConsumer.quad(
-            x1: Float,
-            y1: Float,
-            z1: Float,
-            x2: Float,
-            y2: Float,
-            z2: Float,
-            x3: Float,
-            y3: Float,
-            z3: Float,
-            x4: Float,
-            y4: Float,
-            z4: Float,
-            nx: Float,
-            ny: Float,
-            nz: Float,
-        ) {
-            vertex(entry, x1, y1, z1).color(argb).texture(u0, v0).overlay(ov).light(fullLight).normal(entry, nx, ny, nz)
-            vertex(entry, x2, y2, z2).color(argb).texture(u0, v1).overlay(ov).light(fullLight).normal(entry, nx, ny, nz)
-            vertex(entry, x3, y3, z3).color(argb).texture(u1, v1).overlay(ov).light(fullLight).normal(entry, nx, ny, nz)
-            vertex(entry, x4, y4, z4).color(argb).texture(u1, v0).overlay(ov).light(fullLight).normal(entry, nx, ny, nz)
-        }
-
-        if (!hasUp) {
-            consumer.quad(minX, fluidTop, minZ, minX, fluidTop, maxZ, maxX, fluidTop, maxZ, maxX, fluidTop, minZ, 0f, 1f, 0f)
-        }
-        if (!hasDown) {
-            consumer.quad(minX, minY, maxZ, minX, minY, minZ, maxX, minY, minZ, maxX, minY, maxZ, 0f, -1f, 0f)
-        }
-        if (!hasNorth) {
-            consumer.quad(minX, fluidTop, minZ, maxX, fluidTop, minZ, maxX, minY, minZ, minX, minY, minZ, 0f, 0f, -1f)
-        }
-        if (!hasSouth) {
-            consumer.quad(maxX, fluidTop, maxZ, minX, fluidTop, maxZ, minX, minY, maxZ, maxX, minY, maxZ, 0f, 0f, 1f)
-        }
-        if (!hasWest) {
-            consumer.quad(minX, fluidTop, maxZ, minX, fluidTop, minZ, minX, minY, minZ, minX, minY, maxZ, -1f, 0f, 0f)
-        }
-        if (!hasEast) {
-            consumer.quad(maxX, fluidTop, minZ, maxX, fluidTop, maxZ, maxX, minY, maxZ, maxX, minY, minZ, 1f, 0f, 0f)
-        }
     }
 
     @Suppress("LongParameterList")
