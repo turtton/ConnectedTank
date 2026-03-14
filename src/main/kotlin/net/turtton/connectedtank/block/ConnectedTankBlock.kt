@@ -92,7 +92,10 @@ class ConnectedTankBlock(val tier: TankTier, settings: Settings) :
             val block = world.getBlockState(pos).block as? ConnectedTankBlock
             val capacity = block?.tier?.bucketCapacity ?: CTServerConfig.instance.tankBucketCapacity
             val tankStorage = TankFluidStorage(capacity, fluidData)
-            persistentState.addStorage(pos, tankStorage)
+            val interactedAt = ConnectedTankPlacementContext.consumeInteractedAt()?.takeIf {
+                CTBlocks.isConnectedTank(world.getBlockState(it).block)
+            }
+            persistentState.addStorage(pos, tankStorage, interactedAt)
             CTBlocks.syncGroupBlockEntities(world, pos, persistentState)
         }
     }

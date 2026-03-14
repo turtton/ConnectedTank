@@ -220,7 +220,8 @@ object ConnectedTankGameTest {
     }
 
     @GameTest
-    fun incompatibleGroupsDoNotMerge(context: TestContext) {
+    fun incompatibleGroupsConnectToPriority(context: TestContext) {
+        // 水タンクと溶岩タンクの間に空タンクを置くと、座標優先度で水側に接続
         val posA = BlockPos(0, 2, 0)
         val posB = BlockPos(2, 2, 0)
         context.placeTank(posA)
@@ -247,8 +248,9 @@ object ConnectedTankGameTest {
         val sA = state.getStorage(context.getAbsolutePos(posA))
         val sMid = state.getStorage(context.getAbsolutePos(posMid))
         val sB = state.getStorage(context.getAbsolutePos(posB))
-        context.assertTrue(sA !== sMid, Text.literal("Water group should not merge with middle"))
-        context.assertTrue(sB !== sMid, Text.literal("Lava group should not merge with middle"))
+        // 座標優先度: posA(0,2,0) < posB(2,2,0) → 空タンクは水グループに接続
+        context.assertTrue(sA === sMid, Text.literal("Empty tank should connect to water group (higher priority)"))
+        context.assertTrue(sB !== sMid, Text.literal("Lava group should remain separate"))
         context.assertTrue(sA!!.variant == water, Text.literal("A should still have water"))
         context.assertTrue(sB!!.variant == lava, Text.literal("B should still have lava"))
         context.complete()
@@ -283,6 +285,107 @@ object ConnectedTankGameTest {
             s2!!.variant == FluidVariant.of(Fluids.LAVA),
             Text.literal("Second tank should have lava"),
         )
+        context.complete()
+    }
+
+    // === 座標優先度・interactedAt テスト ===
+
+    @GameTest
+    fun interactedAtConnectsToSpecifiedGroup(context: TestContext) {
+        // 水グループと溶岩グループの間で、interactedAt で溶岩側を指定
+        val posA = BlockPos(0, 2, 0)
+        val posB = BlockPos(2, 2, 0)
+        context.placeTank(posA)
+
+        val state = context.getFluidState()
+        val water = FluidVariant.of(Fluids.WATER)
+        val lava = FluidVariant.of(Fluids.LAVA)
+
+        val storageA = state.getStorage(context.getAbsolutePos(posA))!!
+        Transaction.openOuter().use { transaction ->
+            storageA.insert(water, FluidConstants.BUCKET, transaction)
+            transaction.commit()
+        }
+
+        val lavaStorage = TankFluidStorage(
+            CTServerConfig.DEFAULT_BUCKET_CAPACITY,
+            TankFluidStorage.ExistingData(lava, FluidConstants.BUCKET),
+        )
+        state.addStorage(context.getAbsolutePos(posB), lavaStorage)
+
+        // interactedAt で溶岩側 (posB) を指定して addStorage
+        val posMid = BlockPos(1, 2, 0)
+        val midStorage = TankFluidStorage(CTServerConfig.DEFAULT_BUCKET_CAPACITY)
+        state.addStorage(context.getAbsolutePos(posMid), midStorage, context.getAbsolutePos(posB))
+
+        val sA = state.getStorage(context.getAbsolutePos(posA))
+        val sMid = state.getStorage(context.getAbsolutePos(posMid))
+        val sB = state.getStorage(context.getAbsolutePos(posB))
+        context.assertTrue(sB === sMid, Text.literal("Middle should connect to lava group via interactedAt"))
+        context.assertTrue(sA !== sMid, Text.literal("Water group should remain separate"))
+        context.assertTrue(sA!!.variant == water, Text.literal("A should still have water"))
+        context.assertTrue(sB!!.variant == lava, Text.literal("B+Mid should have lava"))
+        context.complete()
+    }
+
+    @GameTest
+    fun interactedAtDoesNotMergeOtherGroups(context: TestContext) {
+        // interactedAt 指定時、他の互換グループはマージしない
+        val posA = BlockPos(0, 2, 0)
+        val posB = BlockPos(2, 2, 0)
+        context.placeTank(posA)
+        context.placeTank(posB)
+
+        val state = context.getFluidState()
+        val sA = state.getStorage(context.getAbsolutePos(posA))
+        val sB = state.getStorage(context.getAbsolutePos(posB))
+        context.assertTrue(sA !== sB, Text.literal("Groups should be separate before placement"))
+
+        // interactedAt で posB を指定 → posA のグループとはマージしない
+        val posMid = BlockPos(1, 2, 0)
+        val midStorage = TankFluidStorage(CTServerConfig.DEFAULT_BUCKET_CAPACITY)
+        state.addStorage(context.getAbsolutePos(posMid), midStorage, context.getAbsolutePos(posB))
+
+        val sA2 = state.getStorage(context.getAbsolutePos(posA))
+        val sMid = state.getStorage(context.getAbsolutePos(posMid))
+        val sB2 = state.getStorage(context.getAbsolutePos(posB))
+        context.assertTrue(sB2 === sMid, Text.literal("Mid should connect to B"))
+        context.assertTrue(sA2 !== sMid, Text.literal("A should remain separate from Mid"))
+        context.complete()
+    }
+
+    @GameTest
+    fun coordinatePrioritySelectsLowestCoordinate(context: TestContext) {
+        // Y が低い方が優先される
+        val posBottom = BlockPos(1, 2, 0)
+        val posTop = BlockPos(1, 4, 0)
+        context.placeTank(posBottom)
+        context.placeTank(posTop)
+
+        val state = context.getFluidState()
+        val water = FluidVariant.of(Fluids.WATER)
+        val lava = FluidVariant.of(Fluids.LAVA)
+
+        val storageBottom = state.getStorage(context.getAbsolutePos(posBottom))!!
+        Transaction.openOuter().use { tx ->
+            storageBottom.insert(water, FluidConstants.BUCKET, tx)
+            tx.commit()
+        }
+        val storageTop = state.getStorage(context.getAbsolutePos(posTop))!!
+        Transaction.openOuter().use { tx ->
+            storageTop.insert(lava, FluidConstants.BUCKET, tx)
+            tx.commit()
+        }
+
+        // 中間に空タンクを設置 → Y 昇順で posBottom が優先
+        val posMid = BlockPos(1, 3, 0)
+        context.placeTank(posMid)
+
+        val sBottom = state.getStorage(context.getAbsolutePos(posBottom))
+        val sMid = state.getStorage(context.getAbsolutePos(posMid))
+        val sTop = state.getStorage(context.getAbsolutePos(posTop))
+        context.assertTrue(sBottom === sMid, Text.literal("Mid should connect to bottom (lower Y)"))
+        context.assertTrue(sTop !== sMid, Text.literal("Top should remain separate"))
         context.complete()
     }
 

@@ -32,13 +32,21 @@ class FluidStoragePersistentState(
     private val adjacentOffsets = ADJACENT_OFFSETS
 
     fun addStorage(pos: BlockPos, storage: TankFluidStorage, interactedAt: BlockPos? = null) {
-        val neighborIds = if (interactedAt != null) {
-            listOfNotNull(positionalStorageMap[interactedAt])
+        val allAdjacentPositions = adjacentOffsets
+            .map { pos.add(it) }
+            .filter { positionalStorageMap.containsKey(it) }
+
+        // interactedAt が隣接座標に含まれる場合のみ有効、含まれなければ通常の優先度ロジックへフォールバック
+        val effectiveInteractedAt = interactedAt?.takeIf { target -> allAdjacentPositions.any { it == target } }
+
+        val adjacentPositions = if (effectiveInteractedAt != null) {
+            listOf(effectiveInteractedAt)
         } else {
-            adjacentOffsets.mapNotNull { positionalStorageMap[pos.add(it)] }.distinct()
+            // 座標優先度: Y昇順 → X昇順 → Z昇順
+            allAdjacentPositions.sortedWith(compareBy({ it.y }, { it.x }, { it.z }))
         }
 
-        if (neighborIds.isEmpty()) {
+        if (adjacentPositions.isEmpty()) {
             val uuid = UUID.randomUUID()
             positionalStorageMap[pos] = uuid
             storageMap[uuid] = storage.also { it.onChanged = ::markDirty }
@@ -46,14 +54,23 @@ class FluidStoragePersistentState(
             return
         }
 
-        val neighborStorages = neighborIds.mapNotNull { id -> storageMap[id]?.let { id to it } }
-        val nonBlankVariants = neighborStorages.mapNotNull { (_, s) ->
-            if (s.isResourceBlank) null else s.variant
-        }.distinct()
         val newVariant = if (!storage.isResourceBlank) storage.variant else null
-        val allVariants = (nonBlankVariants + listOfNotNull(newVariant)).distinct()
 
-        if (allVariants.size > 1) {
+        // 座標優先度順に最初の互換グループを primary として選択
+        var primaryId: UUID? = null
+        for (adjPos in adjacentPositions) {
+            val adjId = positionalStorageMap[adjPos] ?: continue
+            if (adjId == primaryId) continue
+            val adjStorage = storageMap[adjId] ?: continue
+            val adjVariant = if (!adjStorage.isResourceBlank) adjStorage.variant else null
+            val variants = listOfNotNull(newVariant, adjVariant).distinct()
+            if (variants.size <= 1) {
+                primaryId = adjId
+                break
+            }
+        }
+
+        if (primaryId == null) {
             val uuid = UUID.randomUUID()
             positionalStorageMap[pos] = uuid
             storageMap[uuid] = storage.also { it.onChanged = ::markDirty }
@@ -61,23 +78,42 @@ class FluidStoragePersistentState(
             return
         }
 
-        val primaryId = neighborIds.first()
-        val totalBucketCap = storage.bucketCapacity + neighborStorages.sumOf { (_, s) -> s.bucketCapacity }
-        val totalAmount = storage.amount + neighborStorages.sumOf { (_, s) -> s.amount }
-        val mergedVariant = allVariants.firstOrNull()
+        val primaryStorage = storageMap[primaryId]!!
+        var effectiveVariant = if (!primaryStorage.isResourceBlank) primaryStorage.variant else newVariant
+        var totalBucketCap = storage.bucketCapacity + primaryStorage.bucketCapacity
+        var totalAmount = storage.amount + primaryStorage.amount
+
+        // effectiveInteractedAt 指定時は他の隣接グループをマージしない
+        val idsToMerge = mutableSetOf<UUID>()
+        if (effectiveInteractedAt == null) {
+            for (adjPos in adjacentPositions) {
+                val adjId = positionalStorageMap[adjPos] ?: continue
+                if (adjId == primaryId || adjId in idsToMerge) continue
+                val adjStorage = storageMap[adjId] ?: continue
+                val adjVariant = if (!adjStorage.isResourceBlank) adjStorage.variant else null
+                val variants = listOfNotNull(effectiveVariant, adjVariant).distinct()
+                if (variants.size <= 1) {
+                    totalBucketCap += adjStorage.bucketCapacity
+                    totalAmount += adjStorage.amount
+                    idsToMerge.add(adjId)
+                    // effectiveVariant が未確定の場合、マージした隣接グループのバリアントを採用
+                    if (effectiveVariant == null && adjVariant != null) {
+                        effectiveVariant = adjVariant
+                    }
+                }
+            }
+        }
+
+        val mergedVariant = listOfNotNull(effectiveVariant, newVariant).distinct().firstOrNull()
         val existingData = mergedVariant?.let { TankFluidStorage.ExistingData(it, totalAmount) }
         val mergedStorage = TankFluidStorage(totalBucketCap, existingData).also { it.onChanged = ::markDirty }
 
-        // 全グループを primaryId にリマップ（単一パス）
-        val idsToMerge = neighborStorages
-            .map { (id, _) -> id }
-            .filter { it != primaryId }
-            .toSet()
         if (idsToMerge.isNotEmpty()) {
-            for ((p, id) in positionalStorageMap) {
-                if (id in idsToMerge) {
-                    positionalStorageMap[p] = primaryId
-                }
+            val keysToRemap = positionalStorageMap.entries
+                .filter { it.value in idsToMerge }
+                .map { it.key }
+            for (key in keysToRemap) {
+                positionalStorageMap[key] = primaryId
             }
             for (oldId in idsToMerge) {
                 storageMap.remove(oldId)
