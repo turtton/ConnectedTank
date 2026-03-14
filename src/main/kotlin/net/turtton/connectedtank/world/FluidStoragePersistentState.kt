@@ -36,13 +36,11 @@ class FluidStoragePersistentState(
             .map { pos.add(it) }
             .filter { positionalStorageMap.containsKey(it) }
 
-        val adjacentPositions = if (interactedAt != null) {
-            // interactedAt が隣接座標に含まれる場合のみ使用、含まれなければ通常の優先度ロジックへフォールバック
-            if (allAdjacentPositions.any { it == interactedAt }) {
-                listOf(interactedAt)
-            } else {
-                allAdjacentPositions.sortedWith(compareBy({ it.y }, { it.x }, { it.z }))
-            }
+        // interactedAt が隣接座標に含まれる場合のみ有効、含まれなければ通常の優先度ロジックへフォールバック
+        val effectiveInteractedAt = interactedAt?.takeIf { target -> allAdjacentPositions.any { it == target } }
+
+        val adjacentPositions = if (effectiveInteractedAt != null) {
+            listOf(effectiveInteractedAt)
         } else {
             // 座標優先度: Y昇順 → X昇順 → Z昇順
             allAdjacentPositions.sortedWith(compareBy({ it.y }, { it.x }, { it.z }))
@@ -81,13 +79,13 @@ class FluidStoragePersistentState(
         }
 
         val primaryStorage = storageMap[primaryId]!!
-        val effectiveVariant = if (!primaryStorage.isResourceBlank) primaryStorage.variant else newVariant
+        var effectiveVariant = if (!primaryStorage.isResourceBlank) primaryStorage.variant else newVariant
         var totalBucketCap = storage.bucketCapacity + primaryStorage.bucketCapacity
         var totalAmount = storage.amount + primaryStorage.amount
 
-        // interactedAt 指定時は他の隣接グループをマージしない
+        // effectiveInteractedAt 指定時は他の隣接グループをマージしない
         val idsToMerge = mutableSetOf<UUID>()
-        if (interactedAt == null) {
+        if (effectiveInteractedAt == null) {
             for (adjPos in adjacentPositions) {
                 val adjId = positionalStorageMap[adjPos] ?: continue
                 if (adjId == primaryId || adjId in idsToMerge) continue
@@ -98,6 +96,10 @@ class FluidStoragePersistentState(
                     totalBucketCap += adjStorage.bucketCapacity
                     totalAmount += adjStorage.amount
                     idsToMerge.add(adjId)
+                    // effectiveVariant が未確定の場合、マージした隣接グループのバリアントを採用
+                    if (effectiveVariant == null && adjVariant != null) {
+                        effectiveVariant = adjVariant
+                    }
                 }
             }
         }
