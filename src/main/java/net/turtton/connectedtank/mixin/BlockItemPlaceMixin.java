@@ -12,6 +12,12 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 @Mixin(BlockItem.class)
 public class BlockItemPlaceMixin {
+    /**
+     * place() の先頭でクリック先座標を記録する。
+     * canReplaceExisting() == true: getBlockPos() がクリック先そのもの。
+     * canReplaceExisting() == false: getBlockPos() は設置先（空きブロック）を返すため、
+     * getSide().getOpposite() でオフセットしてクリック先の既存ブロック座標を得る。
+     */
     @Inject(
             method = "place(Lnet/minecraft/item/ItemPlacementContext;)Lnet/minecraft/util/ActionResult;",
             at = @At("HEAD"))
@@ -25,6 +31,11 @@ public class BlockItemPlaceMixin {
         ConnectedTankPlacementContext.INSTANCE.setInteractedAt(hitPos);
     }
 
+    /**
+     * place() の RETURN で ThreadLocal をクリアする。
+     * 例外時は RETURN に到達しないため、consumeInteractedAt() が唯一のクリーンアップ手段となる。
+     * {@link ConnectedTankPlacementContext#consumeInteractedAt()} も参照。
+     */
     @Inject(
             method = "place(Lnet/minecraft/item/ItemPlacementContext;)Lnet/minecraft/util/ActionResult;",
             at = @At("RETURN"))

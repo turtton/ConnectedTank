@@ -12,6 +12,7 @@ import net.minecraft.registry.RegistryWrapper
 import net.minecraft.storage.ReadView
 import net.minecraft.storage.WriteView
 import net.minecraft.util.math.BlockPos
+import net.turtton.connectedtank.config.CTServerConfig
 import org.joml.Math.clamp
 
 class ConnectedTankBlockEntity(
@@ -27,15 +28,24 @@ class ConnectedTankBlockEntity(
     var waveStartTick: Long = 0L
         private set
 
+    /** グループ全体の充填率 (amount / capacity) */
     val fillLevel: Float
         get() = if (capacity <= 0L) 0f else clamp(0f, 1f, amount.toFloat() / capacity)
 
-    fun updateFromStorage(storage: TankFluidStorage) {
+    /** 位置ベース分配による、このタンク個別の充填率 */
+    var localFillLevel: Float = 0f
+        private set
+
+    fun updateFromStorage(storage: TankFluidStorage, localShare: Long = storage.amount) {
         val variantChanged = fluidVariant != storage.variant
         val amountChanged = amount != storage.amount
         fluidVariant = storage.variant
         amount = storage.amount
         capacity = storage.bucketCapacity.toLong() * FluidConstants.BUCKET
+        val posCapacity = (world?.getBlockState(pos)?.block as? ConnectedTankBlock)?.tier?.bucketCapacity
+            ?: CTServerConfig.instance.tankBucketCapacity
+        val posCapacityDroplets = posCapacity.toLong() * FluidConstants.BUCKET
+        localFillLevel = if (posCapacityDroplets > 0) clamp(0f, 1f, localShare.toFloat() / posCapacityDroplets) else 0f
         if (variantChanged || amountChanged) {
             waveStartTick = world?.time ?: 0L
         }
@@ -51,6 +61,7 @@ class ConnectedTankBlockEntity(
         amount = view.getLong("amount", 0L)
         capacity = view.getLong("capacity", 0L)
         waveStartTick = view.getLong("waveStartTick", 0L)
+        localFillLevel = view.getFloat("localFillLevel", 0f)
     }
 
     override fun writeData(view: WriteView) {
@@ -58,6 +69,7 @@ class ConnectedTankBlockEntity(
         view.putLong("amount", amount)
         view.putLong("capacity", capacity)
         view.putLong("waveStartTick", waveStartTick)
+        view.putFloat("localFillLevel", localFillLevel)
     }
 
     override fun toUpdatePacket(): Packet<ClientPlayPacketListener> = BlockEntityUpdateS2CPacket.create(this)

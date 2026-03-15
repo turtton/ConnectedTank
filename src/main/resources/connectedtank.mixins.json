@@ -3,8 +3,7 @@
 	"package": "net.turtton.connectedtank.mixin",
 	"compatibilityLevel": "JAVA_21",
 	"mixins": [
-		"BlockItemPlaceMixin",
-		"ExampleMixin"
+		"BlockItemPlaceMixin"
 	],
 	"injectors": {
 		"defaultRequire": 1

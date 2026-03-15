@@ -3,6 +3,7 @@ package net.turtton.connectedtank.world
 import com.mojang.serialization.Codec
 import com.mojang.serialization.codecs.RecordCodecBuilder
 import java.util.UUID
+import net.fabricmc.fabric.api.transfer.v1.fluid.FluidConstants
 import net.minecraft.server.world.ServerWorld
 import net.minecraft.util.Uuids
 import net.minecraft.util.math.BlockPos
@@ -130,7 +131,11 @@ class FluidStoragePersistentState(
         return positionalStorageMap.values.count { it == uuid }
     }
 
-    fun removeStorage(pos: BlockPos, world: ServerWorld? = null): TankFluidStorage.ExistingData? {
+    fun removeStorage(
+        pos: BlockPos,
+        world: ServerWorld? = null,
+        removedBucketCapacity: Int? = null,
+    ): TankFluidStorage.ExistingData? {
         val uuid = positionalStorageMap.remove(pos) ?: return null
         val existing = storageMap[uuid]
         val variant = existing?.variant
@@ -140,9 +145,10 @@ class FluidStoragePersistentState(
             .filter { it.value == uuid }
             .map { it.key }
 
-        val totalTanks = groupPositions.size + 1
-        val perTank = amount / totalTanks
-        val removedShare = perTank + if (amount % totalTanks > 0) 1L else 0L
+        val allPositions = groupPositions + pos
+        val capacityOverrides = if (removedBucketCapacity != null) mapOf(pos to removedBucketCapacity) else emptyMap()
+        val allShares = calculatePositionShares(allPositions, amount, world, capacityOverrides)
+        val removedShare = allShares[pos] ?: 0L
         val remainingAmount = amount - removedShare
 
         val removedData = if (variant != null && !variant.isBlank && removedShare > 0) {
@@ -170,8 +176,9 @@ class FluidStoragePersistentState(
             }
             storageMap[uuid] = TankFluidStorage(newBucketCap, data).also { it.onChanged = ::markDirty }
         } else {
-            // 分断あり: 液体を均等分配
-            splitIntoComponents(components, uuid, variant, remainingAmount, groupPositions.size, world)
+            // 分断あり: 位置ベースで液体を分配
+            val remainingShares = calculatePositionShares(groupPositions, remainingAmount, world)
+            splitIntoComponents(components, uuid, variant, remainingShares, world)
         }
 
         markDirty()
@@ -206,41 +213,26 @@ class FluidStoragePersistentState(
         return components
     }
 
-    private fun computeGroupCapacity(positions: List<BlockPos>, world: ServerWorld?): Int = if (world != null) {
+    private fun computeGroupCapacity(positions: Iterable<BlockPos>, world: ServerWorld?): Int = if (world != null) {
         positions.sumOf { p ->
             (world.getBlockState(p).block as? ConnectedTankBlock)?.tier?.bucketCapacity ?: defaultBucketCapacity
         }
     } else {
-        positions.size * defaultBucketCapacity
-    }
-
-    private fun computeGroupCapacity(positions: Set<BlockPos>, world: ServerWorld?): Int = if (world != null) {
-        positions.sumOf { p ->
-            (world.getBlockState(p).block as? ConnectedTankBlock)?.tier?.bucketCapacity ?: defaultBucketCapacity
-        }
-    } else {
-        positions.size * defaultBucketCapacity
+        positions.count() * defaultBucketCapacity
     }
 
     private fun splitIntoComponents(
         components: List<Set<BlockPos>>,
         originalUuid: UUID,
         variant: net.fabricmc.fabric.api.transfer.v1.fluid.FluidVariant?,
-        remainingAmount: Long,
-        remainingTanks: Int,
+        positionShares: Map<BlockPos, Long>,
         world: ServerWorld?,
     ) {
-        val basePerTank = remainingAmount / remainingTanks
-        var extraTanks = (remainingAmount % remainingTanks).toInt()
-
         // 最大の成分に元の UUID を再利用
         val sorted = components.sortedByDescending { it.size }
 
         for ((index, component) in sorted.withIndex()) {
-            val componentBase = basePerTank * component.size
-            val componentExtra = minOf(extraTanks, component.size)
-            val componentAmount = componentBase + componentExtra
-            extraTanks -= componentExtra
+            val componentAmount = component.sumOf { positionShares[it] ?: 0L }
 
             val newBucketCap = computeGroupCapacity(component, world)
             val data = if (variant != null && !variant.isBlank && componentAmount > 0) {
@@ -253,7 +245,6 @@ class FluidStoragePersistentState(
             if (index == 0) {
                 // 最大の成分は元の UUID を再利用
                 storageMap[originalUuid] = storage
-                // 他の成分のポジションだけリマップが必要（後続で処理）
             } else {
                 val newUuid = UUID.randomUUID()
                 storageMap[newUuid] = storage
@@ -262,6 +253,100 @@ class FluidStoragePersistentState(
                 }
             }
         }
+    }
+
+    fun calculateShare(
+        pos: BlockPos,
+        world: ServerWorld?,
+        selfBucketCapacity: Int? = null,
+    ): Long {
+        val overrides = if (selfBucketCapacity != null) mapOf(pos to selfBucketCapacity) else emptyMap()
+        return calculateGroupShares(pos, world, overrides)[pos] ?: 0L
+    }
+
+    fun calculateGroupShares(
+        pos: BlockPos,
+        world: ServerWorld?,
+        capacityOverrides: Map<BlockPos, Int> = emptyMap(),
+    ): Map<BlockPos, Long> {
+        val uuid = positionalStorageMap[pos] ?: return emptyMap()
+        val storage = storageMap[uuid] ?: return emptyMap()
+        if (storage.amount <= 0L) return emptyMap()
+
+        val allPositions = positionalStorageMap.entries
+            .filter { it.value == uuid }
+            .map { it.key }
+
+        return calculatePositionShares(allPositions, storage.amount, world, capacityOverrides)
+    }
+
+    private fun calculatePositionShares(
+        positions: List<BlockPos>,
+        totalAmount: Long,
+        world: ServerWorld?,
+        capacityOverrides: Map<BlockPos, Int> = emptyMap(),
+    ): Map<BlockPos, Long> {
+        if (positions.isEmpty() || totalAmount <= 0) return positions.associateWith { 0L }
+
+        val sorted = positions.sortedWith(compareBy({ it.y }, { it.x }, { it.z }))
+        val byLevel = sorted.groupBy { it.y }
+        val levels = byLevel.keys.sorted()
+
+        val shares = mutableMapOf<BlockPos, Long>()
+        var remaining = totalAmount
+
+        for (y in levels) {
+            val levelPositions = byLevel[y]!!
+            val levelCapacities = levelPositions.map { getPositionCapacityDroplets(it, world, capacityOverrides) }
+            val levelTotalCapacity = levelCapacities.sum()
+            val levelFill = minOf(remaining, levelTotalCapacity)
+
+            if (levelFill <= 0) {
+                for (p in levelPositions) shares[p] = 0L
+                continue
+            }
+
+            distributeProportion(levelPositions, levelCapacities, levelTotalCapacity, levelFill, shares)
+            remaining -= levelFill
+        }
+
+        // 設定変更等で amount > totalCapacity の場合、余剰分を最下層の先頭タンクに加算
+        if (remaining > 0) {
+            val firstPos = sorted.first()
+            shares[firstPos] = (shares[firstPos] ?: 0L) + remaining
+        }
+
+        return shares
+    }
+
+    private fun distributeProportion(
+        positions: List<BlockPos>,
+        capacities: List<Long>,
+        totalCapacity: Long,
+        amount: Long,
+        shares: MutableMap<BlockPos, Long>,
+    ) {
+        var cumulativeCapacity = 0L
+        var previousCumulativeShare = 0L
+        for (i in positions.indices) {
+            cumulativeCapacity += capacities[i]
+            val cumulativeShare = amount * cumulativeCapacity / totalCapacity
+            shares[positions[i]] = cumulativeShare - previousCumulativeShare
+            previousCumulativeShare = cumulativeShare
+        }
+    }
+
+    private fun getPositionCapacityDroplets(
+        pos: BlockPos,
+        world: ServerWorld?,
+        capacityOverrides: Map<BlockPos, Int> = emptyMap(),
+    ): Long {
+        val bucketCap = capacityOverrides[pos] ?: if (world != null) {
+            (world.getBlockState(pos).block as? ConnectedTankBlock)?.tier?.bucketCapacity ?: defaultBucketCapacity
+        } else {
+            defaultBucketCapacity
+        }
+        return bucketCap.toLong() * FluidConstants.BUCKET
     }
 
     private data class PositionalStorageEntry(val pos: BlockPos, val id: UUID) {

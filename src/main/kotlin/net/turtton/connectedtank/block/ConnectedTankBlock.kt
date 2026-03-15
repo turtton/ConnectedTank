@@ -42,16 +42,20 @@ class ConnectedTankBlock(val tier: TankTier, settings: Settings) :
             .filter { CTBlocks.isConnectedTank(world.getBlockState(it).block) }
 
         if (!pendingDropData.containsKey(pos)) {
-            val fluidData = persistentState.removeStorage(pos, world)
+            val fluidData = persistentState.removeStorage(pos, world, tier.bucketCapacity)
             if (fluidData != null) pendingDropData[pos] = fluidData
         } else {
             pendingDropData.remove(pos)
-            persistentState.removeStorage(pos, world)
+            persistentState.removeStorage(pos, world, tier.bucketCapacity)
         }
 
         for (neighborPos in neighborPositions) {
             CTBlocks.syncGroupBlockEntities(world, neighborPos, persistentState)
         }
+
+        // クリエイティブモード等で getDroppedStacks が呼ばれないパスのクリーンアップ
+        val immutablePos = pos.toImmutable()
+        world.server?.execute { pendingDropData.remove(immutablePos) }
 
         super.onStateReplaced(state, world, pos, moved)
     }
@@ -68,11 +72,13 @@ class ConnectedTankBlock(val tier: TankTier, settings: Settings) :
                 val persistentState = world.persistentStateManager.getOrCreate(FluidStoragePersistentState.TYPE)
                 val tankStorage = persistentState.getStorage(pos)
                 if (tankStorage != null && !tankStorage.isResourceBlank) {
-                    val groupSize = persistentState.getGroupSize(pos)
-                    val perTank = tankStorage.amount / groupSize
-                    val share = perTank + (if (tankStorage.amount % groupSize > 0L) 1L else 0L)
-                    TankFluidStorage.ExistingData(tankStorage.variant, share).also {
-                        pendingDropData[pos] = it
+                    val share = persistentState.calculateShare(pos, world, tier.bucketCapacity)
+                    if (share > 0) {
+                        TankFluidStorage.ExistingData(tankStorage.variant, share).also {
+                            pendingDropData[pos] = it
+                        }
+                    } else {
+                        null
                     }
                 } else {
                     null
