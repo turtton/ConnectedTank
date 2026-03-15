@@ -12,6 +12,7 @@ import net.minecraft.client.render.block.entity.BlockEntityRenderer
 import net.minecraft.client.render.block.entity.BlockEntityRendererFactory
 import net.minecraft.client.texture.Sprite
 import net.minecraft.client.util.math.MatrixStack
+import net.minecraft.util.math.BlockPos
 import net.minecraft.util.math.Vec3d
 import net.turtton.connectedtank.config.CTClientConfig
 import net.turtton.connectedtank.config.CTClientConfig.RenderQuality
@@ -53,12 +54,24 @@ class ConnectedTankBlockEntityRenderer(
         val world = entity.world
         val pos = entity.pos
 
-        val hasDown = world?.getBlockState(pos.down())?.block?.let(CTBlocks::isConnectedTank) == true
-        val hasUp = world?.getBlockState(pos.up())?.block?.let(CTBlocks::isConnectedTank) == true
-        val hasNorth = world?.getBlockState(pos.north())?.block?.let(CTBlocks::isConnectedTank) == true
-        val hasSouth = world?.getBlockState(pos.south())?.block?.let(CTBlocks::isConnectedTank) == true
-        val hasWest = world?.getBlockState(pos.west())?.block?.let(CTBlocks::isConnectedTank) == true
-        val hasEast = world?.getBlockState(pos.east())?.block?.let(CTBlocks::isConnectedTank) == true
+        val variant = entity.fluidVariant
+        fun sameFluidNeighbor(neighborPos: BlockPos): ConnectedTankBlockEntity? {
+            val neighbor = world?.getBlockEntity(neighborPos) as? ConnectedTankBlockEntity ?: return null
+            return if (!variant.isBlank && neighbor.fluidVariant == variant) neighbor else null
+        }
+
+        val neighborDown = sameFluidNeighbor(pos.down())
+        val neighborUp = sameFluidNeighbor(pos.up())
+
+        // 垂直: 下タンクが満杯で同一液体のときのみ連続とみなす
+        val hasDown = neighborDown != null && neighborDown.localFillLevel >= 1.0f
+        // 垂直: 自身が満杯かつ上タンクに同一液体があるときのみ上面を省略
+        val hasUp = neighborUp != null && entity.localFillLevel >= 1.0f && neighborUp.localFillLevel > 0f
+        // 水平: 同一液体で液体が存在する隣接タンクのみ連続
+        val hasNorth = sameFluidNeighbor(pos.north())?.let { it.localFillLevel > 0f } == true
+        val hasSouth = sameFluidNeighbor(pos.south())?.let { it.localFillLevel > 0f } == true
+        val hasWest = sameFluidNeighbor(pos.west())?.let { it.localFillLevel > 0f } == true
+        val hasEast = sameFluidNeighbor(pos.east())?.let { it.localFillLevel > 0f } == true
 
         val minX = if (hasWest) 0f else INSET
         val maxX = if (hasEast) 1f else 1f - INSET

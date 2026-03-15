@@ -43,6 +43,8 @@ object ConnectedTankClientGameTest : FabricClientGameTest {
             testHalfWaterTank(context, server)
             testHorizontalConnectedTanks(context, server)
             testVerticalConnectedTanks(context, server)
+            testVerticalPartialFillTopFace(context, server)
+            testVerticalDifferentFluidsStacked(context, server)
         }
     }
 
@@ -172,6 +174,42 @@ object ConnectedTankClientGameTest : FabricClientGameTest {
         context.waitTicks(20)
         setupCamera(context, server, 1.8, -57.0, 1.8, 135f, 45f)
         takeQualityScreenshots(context, "5_vertical_connected_tanks")
+    }
+
+    private fun testVerticalPartialFillTopFace(context: ClientGameTestContext, server: TestServerContext) {
+        // 同一液体で下のタンクのみに液体がある場合、上面が正しく描画されることを確認
+        clearArea(server, basePos, 3, 3, 3)
+        val pos1 = basePos
+        val pos2 = basePos.up()
+        placeTank(server, pos1)
+        placeTank(server, pos2)
+        // 下タンクの半分だけ液体を入れる（上タンクには液体なし）
+        insertFluid(server, pos1, FluidVariant.of(Fluids.WATER), FluidConstants.BUCKET * TANK_CAPACITY / 2)
+        context.waitTicks(20)
+        setupCamera(context, server, 1.8, -57.0, 1.8, 135f, 45f)
+        takeQualityScreenshots(context, "7_vertical_partial_fill_top_face")
+    }
+
+    private fun testVerticalDifferentFluidsStacked(context: ClientGameTestContext, server: TestServerContext) {
+        // 異なる液体のタンクを縦に積んだ場合、両方の液体が描画されることを確認
+        clearArea(server, basePos, 3, 3, 3)
+        val pos1 = basePos
+        val pos2 = basePos.up()
+        placeTank(server, pos1)
+        insertFluid(server, pos1, FluidVariant.of(Fluids.WATER), FluidConstants.BUCKET * TANK_CAPACITY)
+        // 上タンクは別グループとして溶岩を直接追加
+        server.onServer { srv ->
+            val world = srv.getWorld(World.OVERWORLD)!!
+            world.setBlockState(pos2, CTBlocks.CONNECTED_TANK.defaultState)
+            val persistentState = world.persistentStateManager.getOrCreate(FluidStoragePersistentState.TYPE)
+            val lavaData = TankFluidStorage.ExistingData(FluidVariant.of(Fluids.LAVA), FluidConstants.BUCKET * TANK_CAPACITY)
+            val lavaStorage = TankFluidStorage(fluid = lavaData)
+            persistentState.addStorage(pos2, lavaStorage)
+            CTBlocks.syncGroupBlockEntities(world, pos2, persistentState)
+        }
+        context.waitTicks(20)
+        setupCamera(context, server, 1.8, -57.0, 1.8, 135f, 45f)
+        takeQualityScreenshots(context, "8_vertical_different_fluids_stacked")
     }
 
     private fun testJadeFluidTooltip(context: ClientGameTestContext, server: TestServerContext) {
