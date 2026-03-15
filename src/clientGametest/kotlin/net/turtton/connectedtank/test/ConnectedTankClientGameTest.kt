@@ -43,6 +43,9 @@ object ConnectedTankClientGameTest : FabricClientGameTest {
             testHalfWaterTank(context, server)
             testHorizontalConnectedTanks(context, server)
             testVerticalConnectedTanks(context, server)
+            testVerticalPartialFillTopFace(context, server)
+            testVerticalDifferentFluidsStacked(context, server)
+            testVerticalSameFluidDifferentGroups(context, server)
         }
     }
 
@@ -83,6 +86,21 @@ object ConnectedTankClientGameTest : FabricClientGameTest {
             val persistentState = world.persistentStateManager.getOrCreate(FluidStoragePersistentState.TYPE)
             val storage = TankFluidStorage(fluid = fluid)
             persistentState.addStorage(pos, storage)
+            CTBlocks.syncGroupBlockEntities(world, pos, persistentState)
+        }
+    }
+
+    private fun placeIsolatedTank(
+        server: TestServerContext,
+        pos: BlockPos,
+        fluid: TankFluidStorage.ExistingData,
+    ) {
+        server.onServer { srv ->
+            val world = srv.getWorld(World.OVERWORLD)!!
+            world.setBlockState(pos, CTBlocks.CONNECTED_TANK.defaultState)
+            val persistentState = world.persistentStateManager.getOrCreate(FluidStoragePersistentState.TYPE)
+            val storage = TankFluidStorage(fluid = fluid)
+            persistentState.addIsolatedStorage(pos, storage)
             CTBlocks.syncGroupBlockEntities(world, pos, persistentState)
         }
     }
@@ -172,6 +190,58 @@ object ConnectedTankClientGameTest : FabricClientGameTest {
         context.waitTicks(20)
         setupCamera(context, server, 1.8, -57.0, 1.8, 135f, 45f)
         takeQualityScreenshots(context, "5_vertical_connected_tanks")
+    }
+
+    private fun testVerticalPartialFillTopFace(context: ClientGameTestContext, server: TestServerContext) {
+        // 同一液体で下のタンクのみに液体がある場合、上面が正しく描画されることを確認
+        clearArea(server, basePos, 3, 3, 3)
+        val pos1 = basePos
+        val pos2 = basePos.up()
+        placeTank(server, pos1)
+        placeTank(server, pos2)
+        // 下タンクの半分だけ液体を入れる（上タンクには液体なし）
+        insertFluid(server, pos1, FluidVariant.of(Fluids.WATER), FluidConstants.BUCKET * TANK_CAPACITY / 2)
+        context.waitTicks(20)
+        setupCamera(context, server, 1.8, -57.0, 1.8, 135f, 45f)
+        takeQualityScreenshots(context, "7_vertical_partial_fill_top_face")
+    }
+
+    private fun testVerticalDifferentFluidsStacked(context: ClientGameTestContext, server: TestServerContext) {
+        // 異なる液体のタンクを縦に積んだ場合、両方の液体が描画されることを確認
+        // 水と溶岩はバリアントが異なるため addStorage でもマージされないが、
+        // addIsolatedStorage で確実に別グループにする
+        clearArea(server, basePos, 3, 3, 3)
+        val pos1 = basePos
+        val pos2 = basePos.up()
+        placeTank(server, pos1)
+        insertFluid(server, pos1, FluidVariant.of(Fluids.WATER), FluidConstants.BUCKET * TANK_CAPACITY)
+        placeIsolatedTank(
+            server,
+            pos2,
+            TankFluidStorage.ExistingData(FluidVariant.of(Fluids.LAVA), FluidConstants.BUCKET * TANK_CAPACITY),
+        )
+        context.waitTicks(20)
+        setupCamera(context, server, 1.8, -57.0, 1.8, 135f, 45f)
+        takeQualityScreenshots(context, "8_vertical_different_fluids_stacked")
+    }
+
+    private fun testVerticalSameFluidDifferentGroups(context: ClientGameTestContext, server: TestServerContext) {
+        // 同一液体・別グループのタンクが隣接している場合、境界面が描画されることを確認
+        // (例: 溶岩タンクを空にして水を入れた場合など、マージされず別グループのまま残るケース)
+        // addIsolatedStorage でグループマージを回避して別グループを強制的に作る
+        clearArea(server, basePos, 3, 3, 3)
+        val pos1 = basePos
+        val pos2 = basePos.up()
+        placeTank(server, pos1)
+        insertFluid(server, pos1, FluidVariant.of(Fluids.WATER), FluidConstants.BUCKET * TANK_CAPACITY)
+        placeIsolatedTank(
+            server,
+            pos2,
+            TankFluidStorage.ExistingData(FluidVariant.of(Fluids.WATER), FluidConstants.BUCKET * TANK_CAPACITY),
+        )
+        context.waitTicks(20)
+        setupCamera(context, server, 1.8, -57.0, 1.8, 135f, 45f)
+        takeQualityScreenshots(context, "9_vertical_same_fluid_different_groups")
     }
 
     private fun testJadeFluidTooltip(context: ClientGameTestContext, server: TestServerContext) {
