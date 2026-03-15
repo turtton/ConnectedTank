@@ -536,7 +536,8 @@ object ConnectedTankGameTest {
 
         val removedData = state.removeStorage(context.getAbsolutePos(posM), context.getWorld())
 
-        // perTank = 810002/3 = 270000, remainder = 810002%3 = 2 > 0 → removedShare = 270001
+        // 位置ベース分配: 同一 Y レベル・同一ティアなので累積丸めで按分
+        // 810002 * 2/3 = 540001 (cumulative for posM) - 270000 (posL) = 270001
         val expectedRemoved = 270001L
         context.assertTrue(removedData != null, Text.literal("Removed data should not be null"))
         context.assertTrue(
@@ -544,10 +545,8 @@ object ConnectedTankGameTest {
             Text.literal("Removed share should be $expectedRemoved but was ${removedData.amount}"),
         )
 
-        // remaining = 810002 - 270001 = 540001, 2 tanks
-        // basePerTank = 540001/2 = 270000, extra = 540001%2 = 1
-        // larger component gets extra: one gets 270001, other gets 270000
-        // Both are single-tank components, so ordering depends on sort
+        // remaining = 810002 - 270001 = 540001, 2 tanks (同一 Y レベル)
+        // 累積丸め: posL = 270000, posR = 270001 (または逆)
         val sL = state.getStorage(context.getAbsolutePos(posL))
         val sR = state.getStorage(context.getAbsolutePos(posR))
         val leftAmt = sL!!.amount
@@ -679,6 +678,135 @@ object ConnectedTankGameTest {
             Text.literal("Merged amount should be 5 buckets but was ${merged.amount / FluidConstants.BUCKET}"),
         )
         context.assertTrue(merged.variant == water, Text.literal("Variant should be water"))
+        context.complete()
+    }
+
+    // === 垂直スタック位置ベース分配テスト ===
+
+    private fun TestContext.placeVerticalTanks(vararg yPositions: Int, x: Int = 0, z: Int = 0): List<BlockPos> {
+        val positions = yPositions.map { BlockPos(x, it, z) }
+        val state = getFluidState()
+        for (pos in positions) {
+            setBlockState(pos, CTBlocks.CONNECTED_TANK.defaultState)
+        }
+        // 下から順に addStorage して接続
+        for (pos in positions.sortedBy { it.y }) {
+            val absPos = getAbsolutePos(pos)
+            val storage = TankFluidStorage(CTServerConfig.DEFAULT_BUCKET_CAPACITY)
+            state.addStorage(absPos, storage)
+        }
+        return positions
+    }
+
+    @GameTest
+    fun verticalStackBottomGetsMoreFluid(context: TestContext) {
+        // 3 段積み: 48 バケツ (50%) → 下=32, 中=16, 上=0
+        val (posBottom, posMid, posTop) = context.placeVerticalTanks(2, 3, 4)
+
+        val state = context.getFluidState()
+        val water = FluidVariant.of(Fluids.WATER)
+        val storage = state.getStorage(context.getAbsolutePos(posBottom))!!
+        val bucketCap = CTServerConfig.DEFAULT_BUCKET_CAPACITY.toLong()
+        val totalAmount = bucketCap * FluidConstants.BUCKET / 2 * 3 // 50% of total capacity
+        Transaction.openOuter().use { tx ->
+            storage.insert(water, totalAmount, tx)
+            tx.commit()
+        }
+
+        // 中間タンクを破壊 → 位置ベースで分配
+        val removedData = state.removeStorage(context.getAbsolutePos(posMid), context.getWorld())
+        val expectedMid = (bucketCap / 2) * FluidConstants.BUCKET
+        context.assertTrue(
+            removedData != null,
+            Text.literal("Removed data should not be null"),
+        )
+        context.assertTrue(
+            removedData!!.amount == expectedMid,
+            Text.literal("Mid share should be $expectedMid but was ${removedData.amount}"),
+        )
+
+        val sBottom = state.getStorage(context.getAbsolutePos(posBottom))
+        val sTop = state.getStorage(context.getAbsolutePos(posTop))
+        val expectedBottom = bucketCap * FluidConstants.BUCKET
+        context.assertTrue(
+            sBottom!!.amount == expectedBottom,
+            Text.literal("Bottom should have $expectedBottom but was ${sBottom.amount}"),
+        )
+        context.assertTrue(
+            sTop!!.amount == 0L,
+            Text.literal("Top should have 0 but was ${sTop.amount}"),
+        )
+        context.complete()
+    }
+
+    @GameTest
+    fun verticalStackBreakBottomRedistributes(context: TestContext) {
+        // 3 段積み: 48 バケツ → 下を破壊
+        // 下=32, 中=16, 上=0 → 下の 32 バケツがドロップ, 残り 16 バケツは中と上に再分配
+        val (posBottom, posMid, posTop) = context.placeVerticalTanks(2, 3, 4)
+
+        val state = context.getFluidState()
+        val water = FluidVariant.of(Fluids.WATER)
+        val storage = state.getStorage(context.getAbsolutePos(posBottom))!!
+        val bucketCap = CTServerConfig.DEFAULT_BUCKET_CAPACITY.toLong()
+        val totalAmount = bucketCap * FluidConstants.BUCKET / 2 * 3
+        Transaction.openOuter().use { tx ->
+            storage.insert(water, totalAmount, tx)
+            tx.commit()
+        }
+
+        val removedData = state.removeStorage(context.getAbsolutePos(posBottom), context.getWorld())
+        val expectedBottom = bucketCap * FluidConstants.BUCKET
+        context.assertTrue(
+            removedData != null,
+            Text.literal("Removed data should not be null"),
+        )
+        context.assertTrue(
+            removedData!!.amount == expectedBottom,
+            Text.literal("Bottom share should be $expectedBottom but was ${removedData.amount}"),
+        )
+
+        // 残り 16 バケツ: 中と上は同一グループで共有ストレージ
+        val sMid = state.getStorage(context.getAbsolutePos(posMid))
+        val sTop = state.getStorage(context.getAbsolutePos(posTop))
+        context.assertTrue(
+            sMid === sTop,
+            Text.literal("Mid and Top should share the same storage"),
+        )
+        val expectedRemaining = (bucketCap / 2) * FluidConstants.BUCKET
+        context.assertTrue(
+            sMid!!.amount == expectedRemaining,
+            Text.literal("Remaining group should have $expectedRemaining but was ${sMid.amount}"),
+        )
+        context.complete()
+    }
+
+    @GameTest
+    fun verticalStackEmptyTopGetsNothing(context: TestContext) {
+        // 2 段積み: 容量の 30% → 下のみに入り、上を破壊しても液体なし
+        val (posBottom, posTop) = context.placeVerticalTanks(2, 3)
+
+        val state = context.getFluidState()
+        val water = FluidVariant.of(Fluids.WATER)
+        val storage = state.getStorage(context.getAbsolutePos(posBottom))!!
+        val bucketCap = CTServerConfig.DEFAULT_BUCKET_CAPACITY.toLong()
+        val amount = bucketCap * FluidConstants.BUCKET * 30 / 100 // 30% of single tank
+        Transaction.openOuter().use { tx ->
+            storage.insert(water, amount, tx)
+            tx.commit()
+        }
+
+        val removedData = state.removeStorage(context.getAbsolutePos(posTop), context.getWorld())
+        context.assertTrue(
+            removedData == null,
+            Text.literal("Top tank should have no fluid to return"),
+        )
+
+        val sBottom = state.getStorage(context.getAbsolutePos(posBottom))
+        context.assertTrue(
+            sBottom!!.amount == amount,
+            Text.literal("Bottom should retain all $amount but was ${sBottom.amount}"),
+        )
         context.complete()
     }
 
