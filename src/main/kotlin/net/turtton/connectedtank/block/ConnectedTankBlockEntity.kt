@@ -1,5 +1,6 @@
 package net.turtton.connectedtank.block
 
+import java.util.UUID
 import net.fabricmc.fabric.api.transfer.v1.fluid.FluidConstants
 import net.fabricmc.fabric.api.transfer.v1.fluid.FluidVariant
 import net.minecraft.block.BlockState
@@ -11,6 +12,7 @@ import net.minecraft.network.packet.s2c.play.BlockEntityUpdateS2CPacket
 import net.minecraft.registry.RegistryWrapper
 import net.minecraft.storage.ReadView
 import net.minecraft.storage.WriteView
+import net.minecraft.util.Uuids
 import net.minecraft.util.math.BlockPos
 import net.turtton.connectedtank.config.CTServerConfig
 import org.joml.Math.clamp
@@ -27,6 +29,8 @@ class ConnectedTankBlockEntity(
         private set
     var waveStartTick: Long = 0L
         private set
+    var groupId: UUID? = null
+        private set
 
     /** グループ全体の充填率 (amount / capacity) */
     val fillLevel: Float
@@ -36,12 +40,13 @@ class ConnectedTankBlockEntity(
     var localFillLevel: Float = 0f
         private set
 
-    fun updateFromStorage(storage: TankFluidStorage, localShare: Long = storage.amount) {
+    fun updateFromStorage(storage: TankFluidStorage, localShare: Long = storage.amount, newGroupId: UUID? = null) {
         val variantChanged = fluidVariant != storage.variant
         val amountChanged = amount != storage.amount
         fluidVariant = storage.variant
         amount = storage.amount
         capacity = storage.bucketCapacity.toLong() * FluidConstants.BUCKET
+        groupId = newGroupId
         val posCapacity = (world?.getBlockState(pos)?.block as? ConnectedTankBlock)?.tier?.bucketCapacity
             ?: CTServerConfig.instance.tankBucketCapacity
         val posCapacityDroplets = posCapacity.toLong() * FluidConstants.BUCKET
@@ -62,6 +67,7 @@ class ConnectedTankBlockEntity(
         capacity = view.getLong("capacity", 0L)
         waveStartTick = view.getLong("waveStartTick", 0L)
         localFillLevel = view.getFloat("localFillLevel", 0f)
+        groupId = view.read("groupId", Uuids.CODEC).orElse(null)
     }
 
     override fun writeData(view: WriteView) {
@@ -70,6 +76,7 @@ class ConnectedTankBlockEntity(
         view.putLong("capacity", capacity)
         view.putLong("waveStartTick", waveStartTick)
         view.putFloat("localFillLevel", localFillLevel)
+        view.putNullable("groupId", Uuids.CODEC, groupId)
     }
 
     override fun toUpdatePacket(): Packet<ClientPlayPacketListener> = BlockEntityUpdateS2CPacket.create(this)

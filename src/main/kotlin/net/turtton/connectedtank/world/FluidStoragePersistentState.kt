@@ -23,6 +23,8 @@ class FluidStoragePersistentState(
 
     fun getStorage(pos: BlockPos): TankFluidStorage? = positionalStorageMap[pos]?.let(storageMap::get)
 
+    fun getGroupId(pos: BlockPos): UUID? = positionalStorageMap[pos]
+
     fun getGroupPositions(pos: BlockPos): List<BlockPos> {
         val uuid = positionalStorageMap[pos] ?: return emptyList()
         return positionalStorageMap.entries
