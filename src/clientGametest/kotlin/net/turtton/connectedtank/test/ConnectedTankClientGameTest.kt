@@ -90,6 +90,21 @@ object ConnectedTankClientGameTest : FabricClientGameTest {
         }
     }
 
+    private fun placeIsolatedTank(
+        server: TestServerContext,
+        pos: BlockPos,
+        fluid: TankFluidStorage.ExistingData,
+    ) {
+        server.onServer { srv ->
+            val world = srv.getWorld(World.OVERWORLD)!!
+            world.setBlockState(pos, CTBlocks.CONNECTED_TANK.defaultState)
+            val persistentState = world.persistentStateManager.getOrCreate(FluidStoragePersistentState.TYPE)
+            val storage = TankFluidStorage(fluid = fluid)
+            persistentState.addIsolatedStorage(pos, storage)
+            CTBlocks.syncGroupBlockEntities(world, pos, persistentState)
+        }
+    }
+
     private fun insertFluid(
         server: TestServerContext,
         pos: BlockPos,
@@ -193,21 +208,18 @@ object ConnectedTankClientGameTest : FabricClientGameTest {
 
     private fun testVerticalDifferentFluidsStacked(context: ClientGameTestContext, server: TestServerContext) {
         // 異なる液体のタンクを縦に積んだ場合、両方の液体が描画されることを確認
+        // 水と溶岩はバリアントが異なるため addStorage でもマージされないが、
+        // addIsolatedStorage で確実に別グループにする
         clearArea(server, basePos, 3, 3, 3)
         val pos1 = basePos
         val pos2 = basePos.up()
         placeTank(server, pos1)
         insertFluid(server, pos1, FluidVariant.of(Fluids.WATER), FluidConstants.BUCKET * TANK_CAPACITY)
-        // 上タンクは別グループとして溶岩を直接追加
-        server.onServer { srv ->
-            val world = srv.getWorld(World.OVERWORLD)!!
-            world.setBlockState(pos2, CTBlocks.CONNECTED_TANK.defaultState)
-            val persistentState = world.persistentStateManager.getOrCreate(FluidStoragePersistentState.TYPE)
-            val lavaData = TankFluidStorage.ExistingData(FluidVariant.of(Fluids.LAVA), FluidConstants.BUCKET * TANK_CAPACITY)
-            val lavaStorage = TankFluidStorage(fluid = lavaData)
-            persistentState.addStorage(pos2, lavaStorage)
-            CTBlocks.syncGroupBlockEntities(world, pos2, persistentState)
-        }
+        placeIsolatedTank(
+            server,
+            pos2,
+            TankFluidStorage.ExistingData(FluidVariant.of(Fluids.LAVA), FluidConstants.BUCKET * TANK_CAPACITY),
+        )
         context.waitTicks(20)
         setupCamera(context, server, 1.8, -57.0, 1.8, 135f, 45f)
         takeQualityScreenshots(context, "8_vertical_different_fluids_stacked")
@@ -216,22 +228,17 @@ object ConnectedTankClientGameTest : FabricClientGameTest {
     private fun testVerticalSameFluidDifferentGroups(context: ClientGameTestContext, server: TestServerContext) {
         // 同一液体・別グループのタンクが隣接している場合、境界面が描画されることを確認
         // (例: 溶岩タンクを空にして水を入れた場合など、マージされず別グループのまま残るケース)
+        // addIsolatedStorage でグループマージを回避して別グループを強制的に作る
         clearArea(server, basePos, 3, 3, 3)
         val pos1 = basePos
         val pos2 = basePos.up()
-        // 下タンク: 水グループ
         placeTank(server, pos1)
         insertFluid(server, pos1, FluidVariant.of(Fluids.WATER), FluidConstants.BUCKET * TANK_CAPACITY)
-        // 上タンク: 別グループとして水を直接追加（グループマージされない状態を再現）
-        server.onServer { srv ->
-            val world = srv.getWorld(World.OVERWORLD)!!
-            world.setBlockState(pos2, CTBlocks.CONNECTED_TANK.defaultState)
-            val persistentState = world.persistentStateManager.getOrCreate(FluidStoragePersistentState.TYPE)
-            val waterData = TankFluidStorage.ExistingData(FluidVariant.of(Fluids.WATER), FluidConstants.BUCKET * TANK_CAPACITY)
-            val waterStorage = TankFluidStorage(fluid = waterData)
-            persistentState.addStorage(pos2, waterStorage)
-            CTBlocks.syncGroupBlockEntities(world, pos2, persistentState)
-        }
+        placeIsolatedTank(
+            server,
+            pos2,
+            TankFluidStorage.ExistingData(FluidVariant.of(Fluids.WATER), FluidConstants.BUCKET * TANK_CAPACITY),
+        )
         context.waitTicks(20)
         setupCamera(context, server, 1.8, -57.0, 1.8, 135f, 45f)
         takeQualityScreenshots(context, "9_vertical_same_fluid_different_groups")

@@ -25,6 +25,13 @@ class FluidStoragePersistentState(
 
     fun getGroupId(pos: BlockPos): UUID? = positionalStorageMap[pos]
 
+    fun addIsolatedStorage(pos: BlockPos, storage: TankFluidStorage) {
+        val uuid = UUID.randomUUID()
+        positionalStorageMap[pos] = uuid
+        storageMap[uuid] = storage.also { it.onChanged = ::markDirty }
+        markDirty()
+    }
+
     fun getGroupPositions(pos: BlockPos): List<BlockPos> {
         val uuid = positionalStorageMap[pos] ?: return emptyList()
         return positionalStorageMap.entries

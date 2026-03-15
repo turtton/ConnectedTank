@@ -46,7 +46,7 @@ class ConnectedTankBlockEntity(
         fluidVariant = storage.variant
         amount = storage.amount
         capacity = storage.bucketCapacity.toLong() * FluidConstants.BUCKET
-        groupId = newGroupId
+        groupId = newGroupId ?: groupId
         val posCapacity = (world?.getBlockState(pos)?.block as? ConnectedTankBlock)?.tier?.bucketCapacity
             ?: CTServerConfig.instance.tankBucketCapacity
         val posCapacityDroplets = posCapacity.toLong() * FluidConstants.BUCKET
