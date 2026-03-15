@@ -310,6 +310,12 @@ class FluidStoragePersistentState(
             remaining -= levelFill
         }
 
+        // 設定変更等で amount > totalCapacity の場合、余剰分を最下層の先頭タンクに加算
+        if (remaining > 0) {
+            val firstPos = sorted.first()
+            shares[firstPos] = (shares[firstPos] ?: 0L) + remaining
+        }
+
         return shares
     }
 
