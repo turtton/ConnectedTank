@@ -125,6 +125,7 @@ dependencies {
     modRuntimeOnly(libs.modmenu)
 
     modRuntimeOnly(libs.rei)
+    modCompileOnly(libs.jade)
     modRuntimeOnly(libs.jade)
 }
 

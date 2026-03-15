@@ -31,6 +31,10 @@ object ConnectedTankClientGameTest : FabricClientGameTest {
 
             server.runCommand("gamemode spectator @p")
             context.waitTicks(5)
+
+            // Jade ツールチップの確認は HUD 表示状態が必要なため、F1 (HUD 非表示) の前に実行
+            testJadeFluidTooltip(context, server)
+
             context.input.pressKey(GLFW.GLFW_KEY_F1)
             context.waitTicks(5)
 
@@ -168,5 +172,21 @@ object ConnectedTankClientGameTest : FabricClientGameTest {
         context.waitTicks(20)
         setupCamera(context, server, 1.8, -57.0, 1.8, 135f, 45f)
         takeQualityScreenshots(context, "5_vertical_connected_tanks")
+    }
+
+    private fun testJadeFluidTooltip(context: ClientGameTestContext, server: TestServerContext) {
+        clearArea(server, basePos, 3, 3, 3)
+        placeTank(server, basePos)
+        insertFluid(server, basePos, FluidVariant.of(Fluids.WATER), FluidConstants.BUCKET * TANK_CAPACITY / 2)
+        context.waitTicks(20)
+
+        // タンク中心 (basePos.y + 0.5) にクロスヘアを合わせるため、
+        // プレイヤー目線高さ (1.62) を差し引いた足元 Y を計算
+        val tankCenterY = basePos.y + 0.5
+        val eyeHeight = 1.62
+        setupCamera(context, server, 0.5, tankCenterY - eyeHeight, 2.0, 180f, 0f)
+        // Jade のサーバーデータ取得・描画のために長めに待機
+        context.waitTicks(40)
+        context.takeScreenshot("6_jade_fluid_tooltip")
     }
 }

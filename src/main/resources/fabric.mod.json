@@ -37,6 +37,12 @@
 				"value": "net.turtton.connectedtank.config.CTConfigScreen",
 				"adapter": "kotlin"
 			}
+		],
+		"jade": [
+			{
+				"value": "net.turtton.connectedtank.compat.jade.ConnectedTankJadePlugin",
+				"adapter": "kotlin"
+			}
 		]
 	},
 	"mixins": [
@@ -55,6 +61,7 @@
 	},
 	"suggests": {
 		"yet_another_config_lib_v3": ">=3.7.0",
-		"modmenu": "*"
+		"modmenu": "*",
+		"jade": "*"
 	}
 }
