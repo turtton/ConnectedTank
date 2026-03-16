@@ -1,7 +1,57 @@
 {
-  "variants": {
-    "": {
-      "model": "connectedtank:block/diamond_connected_tank"
+  "multipart": [
+    {
+      "apply": {
+        "model": "connectedtank:block/diamond_connected_tank"
+      }
+    },
+    {
+      "apply": {
+        "model": "connectedtank:block/diamond_connected_tank_border_up"
+      },
+      "when": {
+        "connected_up": "false"
+      }
+    },
+    {
+      "apply": {
+        "model": "connectedtank:block/diamond_connected_tank_border_down"
+      },
+      "when": {
+        "connected_down": "false"
+      }
+    },
+    {
+      "apply": {
+        "model": "connectedtank:block/diamond_connected_tank_border_north"
+      },
+      "when": {
+        "connected_north": "false"
+      }
+    },
+    {
+      "apply": {
+        "model": "connectedtank:block/diamond_connected_tank_border_south"
+      },
+      "when": {
+        "connected_south": "false"
+      }
+    },
+    {
+      "apply": {
+        "model": "connectedtank:block/diamond_connected_tank_border_east"
+      },
+      "when": {
+        "connected_east": "false"
+      }
+    },
+    {
+      "apply": {
+        "model": "connectedtank:block/diamond_connected_tank_border_west"
+      },
+      "when": {
+        "connected_west": "false"
+      }
     }
-  }
+  ]
 }

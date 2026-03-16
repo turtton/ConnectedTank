@@ -1,0 +1,6 @@
+{
+  "parent": "connectedtank:block/tank_border_north",
+  "textures": {
+    "frame": "connectedtank:block/netherite_connected_tank_frame"
+  }
+}

@@ -1,0 +1,6 @@
+{
+  "parent": "connectedtank:block/tank_border_south",
+  "textures": {
+    "frame": "connectedtank:block/copper_connected_tank_frame"
+  }
+}
