@@ -72,6 +72,15 @@ These steps are mandatory after every code modification.
 
 **Note**: If required checks cannot be executed locally, GitHub Actions results can be used as an alternative. Verify code quality and build success through CI/CD execution results.
 
+## Scripts
+
+`scripts/` ディレクトリにはユーティリティスクリプトが格納されている。全て PEP 723 インラインメタデータで依存関係を記述しており、`uv run` で再現性のある実行が可能。
+
+- **`generate_textures.py`** - タンクブロックのテクスチャ (PNG) を生成する
+    - 実行: `uv run scripts/generate_textures.py`
+    - 出力先: `src/main/resources/assets/connectedtank/textures/block/`
+    - ティア定義は `TankTier.kt` と同期が必要
+
 ## Development Documentation
 Useful development manuals are available in the `docs/` directory:
 - **`MinecraftSourceExploration.md`** - Minecraft source code analysis techniques

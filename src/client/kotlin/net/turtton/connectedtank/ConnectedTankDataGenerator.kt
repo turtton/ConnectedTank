@@ -1,5 +1,7 @@
 package net.turtton.connectedtank
 
+import com.google.gson.JsonArray
+import com.google.gson.JsonObject
 import java.util.concurrent.CompletableFuture
 import net.fabricmc.fabric.api.client.datagen.v1.provider.FabricModelProvider
 import net.fabricmc.fabric.api.datagen.v1.DataGeneratorEntrypoint
@@ -13,9 +15,11 @@ import net.minecraft.advancement.criterion.RecipeUnlockedCriterion
 import net.minecraft.block.Block
 import net.minecraft.client.data.BlockStateModelGenerator
 import net.minecraft.client.data.ItemModelGenerator
-import net.minecraft.client.data.Models
-import net.minecraft.client.data.TextureMap
-import net.minecraft.client.data.TexturedModel
+import net.minecraft.client.data.ModelSupplier
+import net.minecraft.client.data.MultipartBlockModelDefinitionCreator
+import net.minecraft.client.render.model.json.ModelVariant
+import net.minecraft.client.render.model.json.MultipartModelConditionBuilder
+import net.minecraft.client.render.model.json.WeightedVariant
 import net.minecraft.data.recipe.RecipeExporter
 import net.minecraft.data.recipe.RecipeGenerator
 import net.minecraft.data.recipe.SmithingTransformRecipeJsonBuilder
@@ -33,7 +37,9 @@ import net.minecraft.registry.RegistryWrapper
 import net.minecraft.registry.tag.ItemTags
 import net.minecraft.registry.tag.TagKey
 import net.minecraft.util.Identifier
+import net.minecraft.util.collection.Pool
 import net.turtton.connectedtank.block.CTBlocks
+import net.turtton.connectedtank.block.ConnectedTankBlock
 import net.turtton.connectedtank.extension.ModIdentifier
 import net.turtton.connectedtank.recipe.TankUpgradeRecipe
 
@@ -47,19 +53,212 @@ object ConnectedTankDataGenerator : DataGeneratorEntrypoint {
     }
 
     private class ModelProvider(output: FabricDataOutput) : FabricModelProvider(output) {
-        private val glassTextureFactory = TexturedModel.makeFactory(
-            { TextureMap.all(Identifier.of("minecraft", "block/glass")) },
-            Models.CUBE_ALL,
-        )
-
         override fun generateBlockStateModels(generator: BlockStateModelGenerator) {
+            generateBorderTemplateModels(generator)
+
             for (block in CTBlocks.ALL_TANKS) {
-                generator.registerSingleton(block, glassTextureFactory)
-                generator.registerItemModel(block)
+                val tankBlock = block as ConnectedTankBlock
+                val tierId = tankBlock.tier.id
+
+                generateBaseModel(generator, tierId)
+                generateBorderChildModels(generator, tierId)
+                generateMultipartBlockState(generator, block, tierId)
+                generateItemModel(generator, tierId)
             }
         }
 
         override fun generateItemModels(generator: ItemModelGenerator) {}
+
+        private fun generateBaseModel(generator: BlockStateModelGenerator, tierId: String) {
+            val modelId = Identifier.of("connectedtank", "block/$tierId")
+            val json = JsonObject().apply {
+                add(
+                    "textures",
+                    JsonObject().apply {
+                        addProperty("side", "connectedtank:block/${tierId}_side")
+                        addProperty("particle", "connectedtank:block/${tierId}_frame")
+                    },
+                )
+                add(
+                    "elements",
+                    JsonArray().apply {
+                        add(
+                            JsonObject().apply {
+                                add("from", jsonArray(0, 0, 0))
+                                add("to", jsonArray(16, 16, 16))
+                                add(
+                                    "faces",
+                                    JsonObject().apply {
+                                        for (dir in listOf("north", "south", "east", "west")) {
+                                            add(
+                                                dir,
+                                                JsonObject().apply {
+                                                    addProperty("texture", "#side")
+                                                    addProperty("cullface", dir)
+                                                },
+                                            )
+                                        }
+                                    },
+                                )
+                            },
+                        )
+                    },
+                )
+            }
+            generator.modelCollector.accept(modelId, ModelSupplier { json })
+        }
+
+        private fun generateBorderTemplateModels(generator: BlockStateModelGenerator) {
+            for ((direction, elements) in BORDER_OVERLAY_ELEMENTS) {
+                val modelId = Identifier.of("connectedtank", "block/tank_border_$direction")
+                val json = JsonObject().apply {
+                    add(
+                        "textures",
+                        JsonObject().apply {
+                            addProperty("particle", "#frame")
+                        },
+                    )
+                    add(
+                        "elements",
+                        JsonArray().apply {
+                            for (element in elements) {
+                                add(element)
+                            }
+                        },
+                    )
+                }
+                generator.modelCollector.accept(modelId, ModelSupplier { json })
+            }
+        }
+
+        private fun generateBorderChildModels(generator: BlockStateModelGenerator, tierId: String) {
+            for (direction in BORDER_OVERLAY_ELEMENTS.keys) {
+                val modelId = Identifier.of("connectedtank", "block/${tierId}_border_$direction")
+                val json = JsonObject().apply {
+                    addProperty("parent", "connectedtank:block/tank_border_$direction")
+                    add(
+                        "textures",
+                        JsonObject().apply {
+                            addProperty("frame", "connectedtank:block/${tierId}_frame")
+                        },
+                    )
+                }
+                generator.modelCollector.accept(modelId, ModelSupplier { json })
+            }
+        }
+
+        private fun generateMultipartBlockState(
+            generator: BlockStateModelGenerator,
+            block: Block,
+            tierId: String,
+        ) {
+            val supplier = MultipartBlockModelDefinitionCreator.create(block)
+
+            // Base model (always applied)
+            val baseModelId = Identifier.of("connectedtank", "block/$tierId")
+            supplier.with(WeightedVariant(Pool.of(ModelVariant(baseModelId))))
+
+            // Border overlays (applied when NOT connected in each direction)
+            val directionProperties = mapOf(
+                "up" to ConnectedTankBlock.CONNECTED_UP,
+                "down" to ConnectedTankBlock.CONNECTED_DOWN,
+                "north" to ConnectedTankBlock.CONNECTED_NORTH,
+                "south" to ConnectedTankBlock.CONNECTED_SOUTH,
+                "east" to ConnectedTankBlock.CONNECTED_EAST,
+                "west" to ConnectedTankBlock.CONNECTED_WEST,
+            )
+            for ((dirName, property) in directionProperties) {
+                val borderModelId = Identifier.of("connectedtank", "block/${tierId}_border_$dirName")
+                supplier.with(
+                    MultipartModelConditionBuilder().put(property, false),
+                    WeightedVariant(Pool.of(ModelVariant(borderModelId))),
+                )
+            }
+
+            generator.blockStateCollector.accept(supplier)
+        }
+
+        private fun generateItemModel(generator: BlockStateModelGenerator, tierId: String) {
+            val modelId = Identifier.of("connectedtank", "item/$tierId")
+            val json = JsonObject().apply {
+                addProperty("parent", "minecraft:item/generated")
+                add(
+                    "textures",
+                    JsonObject().apply {
+                        addProperty("layer0", "connectedtank:block/${tierId}_item")
+                    },
+                )
+            }
+            generator.modelCollector.accept(modelId, ModelSupplier { json })
+        }
+
+        private fun jsonArray(vararg values: Number): JsonArray = JsonArray().apply {
+            values.forEach { add(it) }
+        }
+
+        private fun borderElement(
+            from: Triple<Number, Number, Number>,
+            to: Triple<Number, Number, Number>,
+            face: String,
+            cullface: String,
+        ): JsonObject = JsonObject().apply {
+            add("from", jsonArray(from.first, from.second, from.third))
+            add("to", jsonArray(to.first, to.second, to.third))
+            add(
+                "faces",
+                JsonObject().apply {
+                    add(
+                        face,
+                        JsonObject().apply {
+                            addProperty("texture", "#frame")
+                            addProperty("cullface", cullface)
+                        },
+                    )
+                },
+            )
+        }
+
+        @Suppress("LongMethod")
+        private val BORDER_OVERLAY_ELEMENTS: Map<String, List<JsonObject>> by lazy {
+            mapOf(
+                "up" to listOf(
+                    borderElement(Triple(0, 15, -0.01), Triple(16, 16, 0.01), "north", "north"),
+                    borderElement(Triple(0, 15, 15.99), Triple(16, 16, 16.01), "south", "south"),
+                    borderElement(Triple(15.99, 15, 0), Triple(16.01, 16, 16), "east", "east"),
+                    borderElement(Triple(-0.01, 15, 0), Triple(0.01, 16, 16), "west", "west"),
+                ),
+                "down" to listOf(
+                    borderElement(Triple(0, 0, -0.01), Triple(16, 1, 0.01), "north", "north"),
+                    borderElement(Triple(0, 0, 15.99), Triple(16, 1, 16.01), "south", "south"),
+                    borderElement(Triple(15.99, 0, 0), Triple(16.01, 1, 16), "east", "east"),
+                    borderElement(Triple(-0.01, 0, 0), Triple(0.01, 1, 16), "west", "west"),
+                ),
+                "north" to listOf(
+                    borderElement(Triple(15.99, 0, 0), Triple(16.01, 16, 1), "east", "east"),
+                    borderElement(Triple(-0.01, 0, 0), Triple(0.01, 16, 1), "west", "west"),
+                    borderElement(Triple(0, 15.99, 0), Triple(16, 16.01, 1), "up", "up"),
+                    borderElement(Triple(0, -0.01, 0), Triple(16, 0.01, 1), "down", "down"),
+                ),
+                "south" to listOf(
+                    borderElement(Triple(15.99, 0, 15), Triple(16.01, 16, 16), "east", "east"),
+                    borderElement(Triple(-0.01, 0, 15), Triple(0.01, 16, 16), "west", "west"),
+                    borderElement(Triple(0, 15.99, 15), Triple(16, 16.01, 16), "up", "up"),
+                    borderElement(Triple(0, -0.01, 15), Triple(16, 0.01, 16), "down", "down"),
+                ),
+                "east" to listOf(
+                    borderElement(Triple(15, 0, -0.01), Triple(16, 16, 0.01), "north", "north"),
+                    borderElement(Triple(15, 0, 15.99), Triple(16, 16, 16.01), "south", "south"),
+                    borderElement(Triple(15, 15.99, 0), Triple(16, 16.01, 16), "up", "up"),
+                    borderElement(Triple(15, -0.01, 0), Triple(16, 0.01, 16), "down", "down"),
+                ),
+                "west" to listOf(
+                    borderElement(Triple(0, 0, -0.01), Triple(1, 16, 0.01), "north", "north"),
+                    borderElement(Triple(0, 0, 15.99), Triple(1, 16, 16.01), "south", "south"),
+                    borderElement(Triple(0, 15.99, 0), Triple(1, 16.01, 16), "up", "up"),
+                    borderElement(Triple(0, -0.01, 0), Triple(1, 0.01, 16), "down", "down"),
+                ),
+            )
+        }
     }
 
     private class RecipeProvider(

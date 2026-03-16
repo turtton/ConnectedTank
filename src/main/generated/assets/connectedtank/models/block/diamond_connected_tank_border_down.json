@@ -1,0 +1,6 @@
+{
+  "parent": "connectedtank:block/tank_border_down",
+  "textures": {
+    "frame": "connectedtank:block/diamond_connected_tank_frame"
+  }
+}
