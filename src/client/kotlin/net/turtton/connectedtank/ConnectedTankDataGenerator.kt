@@ -63,11 +63,30 @@ object ConnectedTankDataGenerator : DataGeneratorEntrypoint {
                 generateBaseModel(generator, tierId)
                 generateBorderChildModels(generator, tierId)
                 generateMultipartBlockState(generator, block, tierId)
-                generateItemModel(generator, tierId)
+                generateItemModel(generator, block, tierId)
             }
         }
 
         override fun generateItemModels(generator: ItemModelGenerator) {}
+
+        private fun createBaseBoxElement(): JsonObject = JsonObject().apply {
+            add("from", jsonArray(0, 0, 0))
+            add("to", jsonArray(16, 16, 16))
+            add(
+                "faces",
+                JsonObject().apply {
+                    for (dir in listOf("north", "south", "east", "west")) {
+                        add(
+                            dir,
+                            JsonObject().apply {
+                                addProperty("texture", "#side")
+                                addProperty("cullface", dir)
+                            },
+                        )
+                    }
+                },
+            )
+        }
 
         private fun generateBaseModel(generator: BlockStateModelGenerator, tierId: String) {
             val modelId = Identifier.of("connectedtank", "block/$tierId")
@@ -81,28 +100,7 @@ object ConnectedTankDataGenerator : DataGeneratorEntrypoint {
                 )
                 add(
                     "elements",
-                    JsonArray().apply {
-                        add(
-                            JsonObject().apply {
-                                add("from", jsonArray(0, 0, 0))
-                                add("to", jsonArray(16, 16, 16))
-                                add(
-                                    "faces",
-                                    JsonObject().apply {
-                                        for (dir in listOf("north", "south", "east", "west")) {
-                                            add(
-                                                dir,
-                                                JsonObject().apply {
-                                                    addProperty("texture", "#side")
-                                                    addProperty("cullface", dir)
-                                                },
-                                            )
-                                        }
-                                    },
-                                )
-                            },
-                        )
-                    },
+                    JsonArray().apply { add(createBaseBoxElement()) },
                 )
             }
             generator.modelCollector.accept(modelId, ModelSupplier { json })
@@ -178,18 +176,34 @@ object ConnectedTankDataGenerator : DataGeneratorEntrypoint {
             generator.blockStateCollector.accept(supplier)
         }
 
-        private fun generateItemModel(generator: BlockStateModelGenerator, tierId: String) {
-            val modelId = Identifier.of("connectedtank", "item/$tierId")
+        // The item model always includes all border overlays for every direction,
+        // because a standalone item is never connected to adjacent blocks.
+        private fun generateItemModel(generator: BlockStateModelGenerator, block: Block, tierId: String) {
+            val modelId = Identifier.of("connectedtank", "block/${tierId}_item")
             val json = JsonObject().apply {
-                addProperty("parent", "minecraft:item/generated")
+                addProperty("parent", "minecraft:block/block")
                 add(
                     "textures",
                     JsonObject().apply {
-                        addProperty("layer0", "connectedtank:block/${tierId}_item")
+                        addProperty("side", "connectedtank:block/${tierId}_side")
+                        addProperty("frame", "connectedtank:block/${tierId}_frame")
+                        addProperty("particle", "connectedtank:block/${tierId}_frame")
+                    },
+                )
+                add(
+                    "elements",
+                    JsonArray().apply {
+                        add(createBaseBoxElement())
+                        for ((_, elements) in BORDER_OVERLAY_ELEMENTS) {
+                            for (element in elements) {
+                                add(element)
+                            }
+                        }
                     },
                 )
             }
             generator.modelCollector.accept(modelId, ModelSupplier { json })
+            generator.registerParentedItemModel(block, modelId)
         }
 
         private fun jsonArray(vararg values: Number): JsonArray = JsonArray().apply {

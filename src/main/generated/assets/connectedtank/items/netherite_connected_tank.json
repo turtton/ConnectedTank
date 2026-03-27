@@ -1,6 +1,6 @@
 {
   "model": {
     "type": "minecraft:model",
-    "model": "connectedtank:block/netherite_connected_tank"
+    "model": "connectedtank:block/netherite_connected_tank_item"
   }
 }

@@ -16,7 +16,16 @@ from pathlib import Path
 from PIL import Image
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-OUTPUT_DIR = REPO_ROOT / "src" / "main" / "resources" / "assets" / "connectedtank" / "textures" / "block"
+OUTPUT_DIR = (
+    REPO_ROOT
+    / "src"
+    / "main"
+    / "resources"
+    / "assets"
+    / "connectedtank"
+    / "textures"
+    / "block"
+)
 
 # Tier definitions: (id, frame_color_rgb, gauge_color_rgb)
 # Colors based on the Minecraft material used for each tier
@@ -57,43 +66,15 @@ def create_frame_texture(frame_color):
     return img
 
 
-def create_item_texture(frame_color, gauge_color):
-    """Create a 16x16 item icon texture with borders and gauge marks."""
-    img = Image.new("RGBA", (16, 16), (0, 0, 0, 0))
-
-    fr = frame_color + (255,)
-    ga = gauge_color + (255,)
-
-    # Frame border (1px on all sides)
-    for i in range(16):
-        img.putpixel((i, 0), fr)
-        img.putpixel((i, 15), fr)
-        img.putpixel((0, i), fr)
-        img.putpixel((15, i), fr)
-
-    # Gauge marks on left inner edge (x=1)
-    for tick_y in [4, 8, 12]:
-        for dx in range(3):
-            img.putpixel((1 + dx, tick_y), ga)
-
-    for tick_y in [2, 6, 10, 14]:
-        for dx in range(2):
-            img.putpixel((1 + dx, tick_y), ga)
-
-    return img
-
-
 def main():
     os.makedirs(OUTPUT_DIR, exist_ok=True)
 
     for tier_id, frame_color, gauge_color in TIERS:
         side = create_side_texture(gauge_color)
         frame = create_frame_texture(frame_color)
-        item = create_item_texture(frame_color, gauge_color)
 
         side.save(OUTPUT_DIR / f"{tier_id}_side.png")
         frame.save(OUTPUT_DIR / f"{tier_id}_frame.png")
-        item.save(OUTPUT_DIR / f"{tier_id}_item.png")
         print(f"Generated: {tier_id}")
 
     print("Done!")
