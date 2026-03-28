@@ -1,6 +1,0 @@
-{
-  "parent": "connectedtank:block/tank_border_east",
-  "textures": {
-    "frame": "connectedtank:block/stone_connected_tank_frame"
-  }
-}

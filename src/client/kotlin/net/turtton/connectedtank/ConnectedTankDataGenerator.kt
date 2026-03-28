@@ -107,41 +107,47 @@ object ConnectedTankDataGenerator : DataGeneratorEntrypoint {
         }
 
         private fun generateBorderTemplateModels(generator: BlockStateModelGenerator) {
-            for ((direction, elements) in BORDER_OVERLAY_ELEMENTS) {
-                val modelId = Identifier.of("connectedtank", "block/tank_border_$direction")
-                val json = JsonObject().apply {
-                    add(
-                        "textures",
-                        JsonObject().apply {
-                            addProperty("particle", "#frame")
-                        },
+            for ((direction, stripMap) in BORDER_STRIP_ELEMENTS) {
+                for ((stripDir, element) in stripMap) {
+                    val modelId = Identifier.of(
+                        "connectedtank",
+                        "block/tank_border_${direction}_$stripDir",
                     )
-                    add(
-                        "elements",
-                        JsonArray().apply {
-                            for (element in elements) {
-                                add(element)
-                            }
-                        },
-                    )
+                    val json = JsonObject().apply {
+                        add(
+                            "textures",
+                            JsonObject().apply {
+                                addProperty("particle", "#frame")
+                            },
+                        )
+                        add("elements", JsonArray().apply { add(element) })
+                    }
+                    generator.modelCollector.accept(modelId, ModelSupplier { json })
                 }
-                generator.modelCollector.accept(modelId, ModelSupplier { json })
             }
         }
 
         private fun generateBorderChildModels(generator: BlockStateModelGenerator, tierId: String) {
-            for (direction in BORDER_OVERLAY_ELEMENTS.keys) {
-                val modelId = Identifier.of("connectedtank", "block/${tierId}_border_$direction")
-                val json = JsonObject().apply {
-                    addProperty("parent", "connectedtank:block/tank_border_$direction")
-                    add(
-                        "textures",
-                        JsonObject().apply {
-                            addProperty("frame", "connectedtank:block/${tierId}_frame")
-                        },
+            for ((direction, stripMap) in BORDER_STRIP_ELEMENTS) {
+                for (stripDir in stripMap.keys) {
+                    val modelId = Identifier.of(
+                        "connectedtank",
+                        "block/${tierId}_border_${direction}_$stripDir",
                     )
+                    val json = JsonObject().apply {
+                        addProperty(
+                            "parent",
+                            "connectedtank:block/tank_border_${direction}_$stripDir",
+                        )
+                        add(
+                            "textures",
+                            JsonObject().apply {
+                                addProperty("frame", "connectedtank:block/${tierId}_frame")
+                            },
+                        )
+                    }
+                    generator.modelCollector.accept(modelId, ModelSupplier { json })
                 }
-                generator.modelCollector.accept(modelId, ModelSupplier { json })
             }
         }
 
@@ -165,12 +171,22 @@ object ConnectedTankDataGenerator : DataGeneratorEntrypoint {
                 "east" to ConnectedTankBlock.CONNECTED_EAST,
                 "west" to ConnectedTankBlock.CONNECTED_WEST,
             )
-            for ((dirName, property) in directionProperties) {
-                val borderModelId = Identifier.of("connectedtank", "block/${tierId}_border_$dirName")
-                supplier.with(
-                    MultipartModelConditionBuilder().put(property, false),
-                    WeightedVariant(Pool.of(ModelVariant(borderModelId))),
-                )
+            // 各ストリップ: border 方向が非接続 AND ストリップ方向も非接続のとき表示
+            for ((dirName, stripMap) in BORDER_STRIP_ELEMENTS) {
+                val borderProperty = requireNotNull(directionProperties[dirName])
+                for (stripDir in stripMap.keys) {
+                    val stripProperty = requireNotNull(directionProperties[stripDir])
+                    val modelId = Identifier.of(
+                        "connectedtank",
+                        "block/${tierId}_border_${dirName}_$stripDir",
+                    )
+                    supplier.with(
+                        MultipartModelConditionBuilder()
+                            .put(borderProperty, false)
+                            .put(stripProperty, false),
+                        WeightedVariant(Pool.of(ModelVariant(modelId))),
+                    )
+                }
             }
 
             generator.blockStateCollector.accept(supplier)
@@ -194,8 +210,8 @@ object ConnectedTankDataGenerator : DataGeneratorEntrypoint {
                     "elements",
                     JsonArray().apply {
                         add(createBaseBoxElement())
-                        for ((_, elements) in BORDER_OVERLAY_ELEMENTS) {
-                            for (element in elements) {
+                        for ((_, stripMap) in BORDER_STRIP_ELEMENTS) {
+                            for ((_, element) in stripMap) {
                                 add(element)
                             }
                         }
@@ -210,66 +226,82 @@ object ConnectedTankDataGenerator : DataGeneratorEntrypoint {
             values.forEach { add(it) }
         }
 
-        private fun borderElement(
+        private val OPPOSITE_FACE: Map<String, String> = mapOf(
+            "north" to "south",
+            "south" to "north",
+            "east" to "west",
+            "west" to "east",
+            "up" to "down",
+            "down" to "up",
+        )
+
+        // cullface を付けないこと。isSideInvisible() が Direction 単位で判定するため、
+        // partial face の border strip まで巻き添えで cull される。
+        // 各ストリップは表面 (face) と裏面 (OPPOSITE_FACE[face]) の両面を持つ。
+        // Minecraft の model quad は背面カリングされるため、透明ブロックを通して
+        // 裏側のボーダーを見えるようにするために反対面が必要。
+        // 各ストリップは個別モデルに分離し、multipart の AND 条件
+        // (connected_{borderDir}=false AND connected_{stripDir}=false) で制御する。
+        private fun borderStripElement(
             from: Triple<Number, Number, Number>,
             to: Triple<Number, Number, Number>,
             face: String,
-            cullface: String,
         ): JsonObject = JsonObject().apply {
             add("from", jsonArray(from.first, from.second, from.third))
             add("to", jsonArray(to.first, to.second, to.third))
+            val frameFace = JsonObject().apply {
+                addProperty("texture", "#frame")
+            }
             add(
                 "faces",
                 JsonObject().apply {
-                    add(
-                        face,
-                        JsonObject().apply {
-                            addProperty("texture", "#frame")
-                            addProperty("cullface", cullface)
-                        },
-                    )
+                    add(face, frameFace)
+                    add(requireNotNull(OPPOSITE_FACE[face]) { "Unknown face: $face" }, frameFace)
                 },
             )
         }
 
+        // ボーダーストリップ要素。各ストリップは個別モデルに分離し、
+        // multipart の AND 条件で制御する。
+        // キー: border 方向 → ストリップの face 方向 → 両面要素
         @Suppress("LongMethod")
-        private val BORDER_OVERLAY_ELEMENTS: Map<String, List<JsonObject>> by lazy {
+        private val BORDER_STRIP_ELEMENTS: Map<String, Map<String, JsonObject>> by lazy {
             mapOf(
-                "up" to listOf(
-                    borderElement(Triple(0, 15, -0.01), Triple(16, 16, 0.01), "north", "north"),
-                    borderElement(Triple(0, 15, 15.99), Triple(16, 16, 16.01), "south", "south"),
-                    borderElement(Triple(15.99, 15, 0), Triple(16.01, 16, 16), "east", "east"),
-                    borderElement(Triple(-0.01, 15, 0), Triple(0.01, 16, 16), "west", "west"),
+                "up" to mapOf(
+                    "north" to borderStripElement(Triple(0, 15, -0.01), Triple(16, 16, 0.01), "north"),
+                    "south" to borderStripElement(Triple(0, 15, 15.99), Triple(16, 16, 16.01), "south"),
+                    "east" to borderStripElement(Triple(15.99, 15, 0), Triple(16.01, 16, 16), "east"),
+                    "west" to borderStripElement(Triple(-0.01, 15, 0), Triple(0.01, 16, 16), "west"),
                 ),
-                "down" to listOf(
-                    borderElement(Triple(0, 0, -0.01), Triple(16, 1, 0.01), "north", "north"),
-                    borderElement(Triple(0, 0, 15.99), Triple(16, 1, 16.01), "south", "south"),
-                    borderElement(Triple(15.99, 0, 0), Triple(16.01, 1, 16), "east", "east"),
-                    borderElement(Triple(-0.01, 0, 0), Triple(0.01, 1, 16), "west", "west"),
+                "down" to mapOf(
+                    "north" to borderStripElement(Triple(0, 0, -0.01), Triple(16, 1, 0.01), "north"),
+                    "south" to borderStripElement(Triple(0, 0, 15.99), Triple(16, 1, 16.01), "south"),
+                    "east" to borderStripElement(Triple(15.99, 0, 0), Triple(16.01, 1, 16), "east"),
+                    "west" to borderStripElement(Triple(-0.01, 0, 0), Triple(0.01, 1, 16), "west"),
                 ),
-                "north" to listOf(
-                    borderElement(Triple(15.99, 0, 0), Triple(16.01, 16, 1), "east", "east"),
-                    borderElement(Triple(-0.01, 0, 0), Triple(0.01, 16, 1), "west", "west"),
-                    borderElement(Triple(0, 15.99, 0), Triple(16, 16.01, 1), "up", "up"),
-                    borderElement(Triple(0, -0.01, 0), Triple(16, 0.01, 1), "down", "down"),
+                "north" to mapOf(
+                    "east" to borderStripElement(Triple(15.99, 0, 0), Triple(16.01, 16, 1), "east"),
+                    "west" to borderStripElement(Triple(-0.01, 0, 0), Triple(0.01, 16, 1), "west"),
+                    "up" to borderStripElement(Triple(0, 15.99, 0), Triple(16, 16.01, 1), "up"),
+                    "down" to borderStripElement(Triple(0, -0.01, 0), Triple(16, 0.01, 1), "down"),
                 ),
-                "south" to listOf(
-                    borderElement(Triple(15.99, 0, 15), Triple(16.01, 16, 16), "east", "east"),
-                    borderElement(Triple(-0.01, 0, 15), Triple(0.01, 16, 16), "west", "west"),
-                    borderElement(Triple(0, 15.99, 15), Triple(16, 16.01, 16), "up", "up"),
-                    borderElement(Triple(0, -0.01, 15), Triple(16, 0.01, 16), "down", "down"),
+                "south" to mapOf(
+                    "east" to borderStripElement(Triple(15.99, 0, 15), Triple(16.01, 16, 16), "east"),
+                    "west" to borderStripElement(Triple(-0.01, 0, 15), Triple(0.01, 16, 16), "west"),
+                    "up" to borderStripElement(Triple(0, 15.99, 15), Triple(16, 16.01, 16), "up"),
+                    "down" to borderStripElement(Triple(0, -0.01, 15), Triple(16, 0.01, 16), "down"),
                 ),
-                "east" to listOf(
-                    borderElement(Triple(15, 0, -0.01), Triple(16, 16, 0.01), "north", "north"),
-                    borderElement(Triple(15, 0, 15.99), Triple(16, 16, 16.01), "south", "south"),
-                    borderElement(Triple(15, 15.99, 0), Triple(16, 16.01, 16), "up", "up"),
-                    borderElement(Triple(15, -0.01, 0), Triple(16, 0.01, 16), "down", "down"),
+                "east" to mapOf(
+                    "north" to borderStripElement(Triple(15, 0, -0.01), Triple(16, 16, 0.01), "north"),
+                    "south" to borderStripElement(Triple(15, 0, 15.99), Triple(16, 16, 16.01), "south"),
+                    "up" to borderStripElement(Triple(15, 15.99, 0), Triple(16, 16.01, 16), "up"),
+                    "down" to borderStripElement(Triple(15, -0.01, 0), Triple(16, 0.01, 16), "down"),
                 ),
-                "west" to listOf(
-                    borderElement(Triple(0, 0, -0.01), Triple(1, 16, 0.01), "north", "north"),
-                    borderElement(Triple(0, 0, 15.99), Triple(1, 16, 16.01), "south", "south"),
-                    borderElement(Triple(0, 15.99, 0), Triple(1, 16.01, 16), "up", "up"),
-                    borderElement(Triple(0, -0.01, 0), Triple(1, 0.01, 16), "down", "down"),
+                "west" to mapOf(
+                    "north" to borderStripElement(Triple(0, 0, -0.01), Triple(1, 16, 0.01), "north"),
+                    "south" to borderStripElement(Triple(0, 0, 15.99), Triple(1, 16, 16.01), "south"),
+                    "up" to borderStripElement(Triple(0, 15.99, 0), Triple(1, 16.01, 16), "up"),
+                    "down" to borderStripElement(Triple(0, -0.01, 0), Triple(1, 0.01, 16), "down"),
                 ),
             )
         }

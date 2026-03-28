@@ -1,0 +1,27 @@
+{
+  "elements": [
+    {
+      "faces": {
+        "east": {
+          "texture": "#frame"
+        },
+        "west": {
+          "texture": "#frame"
+        }
+      },
+      "from": [
+        15.99,
+        0,
+        15
+      ],
+      "to": [
+        16.01,
+        16,
+        16
+      ]
+    }
+  ],
+  "textures": {
+    "particle": "#frame"
+  }
+}

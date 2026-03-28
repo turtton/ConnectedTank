@@ -1,0 +1,27 @@
+{
+  "elements": [
+    {
+      "faces": {
+        "down": {
+          "texture": "#frame"
+        },
+        "up": {
+          "texture": "#frame"
+        }
+      },
+      "from": [
+        0,
+        -0.01,
+        15
+      ],
+      "to": [
+        16,
+        0.01,
+        16
+      ]
+    }
+  ],
+  "textures": {
+    "particle": "#frame"
+  }
+}
