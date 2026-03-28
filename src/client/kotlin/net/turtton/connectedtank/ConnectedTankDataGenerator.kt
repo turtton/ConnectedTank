@@ -69,24 +69,59 @@ object ConnectedTankDataGenerator : DataGeneratorEntrypoint {
 
         override fun generateItemModels(generator: ItemModelGenerator) {}
 
-        private fun createBaseBoxElement(): JsonObject = JsonObject().apply {
-            add("from", jsonArray(0, 0, 0))
-            add("to", jsonArray(16, 16, 16))
+        private fun jsonArray(vararg values: Number): JsonArray = JsonArray().apply {
+            values.forEach { add(it) }
+        }
+
+        private val OPPOSITE_FACE: Map<String, String> = mapOf(
+            "north" to "south",
+            "south" to "north",
+            "east" to "west",
+            "west" to "east",
+            "up" to "down",
+            "down" to "up",
+        )
+
+        // borderStripElement と同じ理由で両面を持つ薄パネル（背面カリング対策）。
+        // 両面とも同じ方向の cullface を持つ。これにより隣接不透明ブロックによるカリングと
+        // isSideInvisible() による接続時カリングの両方で、壁全体が一括で消える。
+        private fun createSidePanelElement(
+            from: Triple<Number, Number, Number>,
+            to: Triple<Number, Number, Number>,
+            face: String,
+        ): JsonObject = JsonObject().apply {
+            add("from", jsonArray(from.first, from.second, from.third))
+            add("to", jsonArray(to.first, to.second, to.third))
+            val oppositeFace = requireNotNull(OPPOSITE_FACE[face]) { "Unknown face: $face" }
             add(
                 "faces",
                 JsonObject().apply {
-                    for (dir in listOf("north", "south", "east", "west")) {
-                        add(
-                            dir,
-                            JsonObject().apply {
-                                addProperty("texture", "#side")
-                                addProperty("cullface", dir)
-                            },
-                        )
-                    }
+                    add(
+                        face,
+                        JsonObject().apply {
+                            addProperty("texture", "#side")
+                            addProperty("cullface", face)
+                        },
+                    )
+                    add(
+                        oppositeFace,
+                        JsonObject().apply {
+                            addProperty("texture", "#side")
+                            // 裏面から見た時にテクスチャが左右反転して見えるよう U 軸を反転
+                            add("uv", jsonArray(16, 0, 0, 16))
+                            addProperty("cullface", face)
+                        },
+                    )
                 },
             )
         }
+
+        private val SIDE_PANEL_ELEMENTS: List<JsonObject> = listOf(
+            createSidePanelElement(Triple(0, 0, 0), Triple(0.01, 16, 16), "west"),
+            createSidePanelElement(Triple(15.99, 0, 0), Triple(16, 16, 16), "east"),
+            createSidePanelElement(Triple(0, 0, 0), Triple(16, 16, 0.01), "north"),
+            createSidePanelElement(Triple(0, 0, 15.99), Triple(16, 16, 16), "south"),
+        )
 
         private fun generateBaseModel(generator: BlockStateModelGenerator, tierId: String) {
             val modelId = Identifier.of("connectedtank", "block/$tierId")
@@ -100,7 +135,7 @@ object ConnectedTankDataGenerator : DataGeneratorEntrypoint {
                 )
                 add(
                     "elements",
-                    JsonArray().apply { add(createBaseBoxElement()) },
+                    JsonArray().apply { SIDE_PANEL_ELEMENTS.forEach { add(it) } },
                 )
             }
             generator.modelCollector.accept(modelId, ModelSupplier { json })
@@ -209,7 +244,7 @@ object ConnectedTankDataGenerator : DataGeneratorEntrypoint {
                 add(
                     "elements",
                     JsonArray().apply {
-                        add(createBaseBoxElement())
+                        SIDE_PANEL_ELEMENTS.forEach { add(it) }
                         for ((_, stripMap) in BORDER_STRIP_ELEMENTS) {
                             for ((_, element) in stripMap) {
                                 add(element)
@@ -221,19 +256,6 @@ object ConnectedTankDataGenerator : DataGeneratorEntrypoint {
             generator.modelCollector.accept(modelId, ModelSupplier { json })
             generator.registerParentedItemModel(block, modelId)
         }
-
-        private fun jsonArray(vararg values: Number): JsonArray = JsonArray().apply {
-            values.forEach { add(it) }
-        }
-
-        private val OPPOSITE_FACE: Map<String, String> = mapOf(
-            "north" to "south",
-            "south" to "north",
-            "east" to "west",
-            "west" to "east",
-            "up" to "down",
-            "down" to "up",
-        )
 
         // cullface を付けないこと。isSideInvisible() が Direction 単位で判定するため、
         // partial face の border strip まで巻き添えで cull される。
