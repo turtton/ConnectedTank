@@ -70,13 +70,9 @@ class ConnectedTankBlock(val tier: TankTier, settings: Settings) :
     }
 
     override fun getPlacementState(ctx: ItemPlacementContext): BlockState {
-        val world = ctx.world
-        val pos = ctx.blockPos
-        var state = defaultState
-        for ((direction, property) in DIRECTION_PROPERTIES) {
-            state = state.with(property, CTBlocks.isConnectedTank(world.getBlockState(pos.offset(direction)).block))
-        }
-        return state
+        // 設置直後は BlockEntity がまだ存在しないため、全方向 false で設置する。
+        // 正しい接続状態は onPlaced → syncGroupBlockEntities で確定する。
+        return defaultState
     }
 
     override fun getStateForNeighborUpdate(
@@ -90,12 +86,18 @@ class ConnectedTankBlock(val tier: TankTier, settings: Settings) :
         random: Random,
     ): BlockState {
         val property = DIRECTION_PROPERTIES[direction] ?: return state
-        return state.with(property, CTBlocks.isConnectedTank(neighborState.block))
+        if (!CTBlocks.isConnectedTank(neighborState.block)) {
+            return state.with(property, false)
+        }
+        return state
     }
 
     override fun createBlockEntity(pos: BlockPos, state: BlockState): BlockEntity = ConnectedTankBlockEntity(pos, state)
 
-    override fun isSideInvisible(state: BlockState, stateFrom: BlockState, direction: Direction): Boolean = CTBlocks.isConnectedTank(stateFrom.block) || super.isSideInvisible(state, stateFrom, direction)
+    override fun isSideInvisible(state: BlockState, stateFrom: BlockState, direction: Direction): Boolean {
+        val property = DIRECTION_PROPERTIES[direction] ?: return super.isSideInvisible(state, stateFrom, direction)
+        return state.get(property) || super.isSideInvisible(state, stateFrom, direction)
+    }
 
     override fun onStateReplaced(state: BlockState, world: ServerWorld, pos: BlockPos, moved: Boolean) {
         val persistentState = world.persistentStateManager.getOrCreate(FluidStoragePersistentState.TYPE)

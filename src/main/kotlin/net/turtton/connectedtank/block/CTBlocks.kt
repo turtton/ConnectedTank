@@ -68,9 +68,47 @@ object CTBlocks {
         val storage = state.getStorage(pos) ?: return
         val groupId = state.getGroupId(pos)
         val shares = state.calculateGroupShares(pos, world)
-        for (groupPos in state.getGroupPositions(pos)) {
+        val groupPositions = state.getGroupPositions(pos)
+        for (groupPos in groupPositions) {
             val blockEntity = world.getBlockEntity(groupPos) as? ConnectedTankBlockEntity ?: continue
             blockEntity.updateFromStorage(storage, shares[groupPos] ?: 0L, groupId)
+        }
+        updateConnectionStates(world, groupPositions, state)
+    }
+
+    private fun updateConnectionStates(
+        world: ServerWorld,
+        positions: Iterable<BlockPos>,
+        state: FluidStoragePersistentState = world.persistentStateManager.getOrCreate(FluidStoragePersistentState.TYPE),
+    ) {
+        val positionsToUpdate = mutableSetOf<BlockPos>()
+        for (pos in positions) {
+            positionsToUpdate.add(pos)
+            for (offset in FluidStoragePersistentState.ADJACENT_OFFSETS) {
+                val neighborPos = pos.add(offset)
+                if (isConnectedTank(world.getBlockState(neighborPos).block)) {
+                    positionsToUpdate.add(neighborPos)
+                }
+            }
+        }
+        for (targetPos in positionsToUpdate) {
+            val currentState = world.getBlockState(targetPos)
+            if (currentState.block !is ConnectedTankBlock) continue
+            val myGroupId = state.getGroupId(targetPos)
+            var newState = currentState
+            for ((direction, property) in ConnectedTankBlock.DIRECTION_PROPERTIES) {
+                val neighborPos = targetPos.offset(direction)
+                val neighborBlock = world.getBlockState(neighborPos).block
+                val connected = if (isConnectedTank(neighborBlock) && myGroupId != null) {
+                    state.getGroupId(neighborPos) == myGroupId
+                } else {
+                    false
+                }
+                newState = newState.with(property, connected)
+            }
+            if (newState != currentState) {
+                world.setBlockState(targetPos, newState, Block.NOTIFY_LISTENERS)
+            }
         }
     }
 }
