@@ -23,6 +23,7 @@ classes/
 bin/
 .classpath
 .project
+.factorypath
 
 # macos
 
@@ -35,6 +36,7 @@ run/
 # loom decompiled sources
 
 /net/
+/temp
 
 # datagen
 

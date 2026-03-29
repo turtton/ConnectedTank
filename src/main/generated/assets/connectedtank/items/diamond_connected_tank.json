@@ -1,6 +1,6 @@
 {
   "model": {
     "type": "minecraft:model",
-    "model": "connectedtank:item/diamond_connected_tank"
+    "model": "connectedtank:block/diamond_connected_tank_item"
   }
 }

@@ -1,7 +1,225 @@
 {
-  "variants": {
-    "": {
-      "model": "connectedtank:block/gold_connected_tank"
+  "multipart": [
+    {
+      "apply": {
+        "model": "connectedtank:block/gold_connected_tank"
+      }
+    },
+    {
+      "apply": {
+        "model": "connectedtank:block/gold_connected_tank_border_up_north"
+      },
+      "when": {
+        "connected_north": "false",
+        "connected_up": "false"
+      }
+    },
+    {
+      "apply": {
+        "model": "connectedtank:block/gold_connected_tank_border_up_south"
+      },
+      "when": {
+        "connected_south": "false",
+        "connected_up": "false"
+      }
+    },
+    {
+      "apply": {
+        "model": "connectedtank:block/gold_connected_tank_border_up_east"
+      },
+      "when": {
+        "connected_east": "false",
+        "connected_up": "false"
+      }
+    },
+    {
+      "apply": {
+        "model": "connectedtank:block/gold_connected_tank_border_up_west"
+      },
+      "when": {
+        "connected_up": "false",
+        "connected_west": "false"
+      }
+    },
+    {
+      "apply": {
+        "model": "connectedtank:block/gold_connected_tank_border_down_north"
+      },
+      "when": {
+        "connected_down": "false",
+        "connected_north": "false"
+      }
+    },
+    {
+      "apply": {
+        "model": "connectedtank:block/gold_connected_tank_border_down_south"
+      },
+      "when": {
+        "connected_down": "false",
+        "connected_south": "false"
+      }
+    },
+    {
+      "apply": {
+        "model": "connectedtank:block/gold_connected_tank_border_down_east"
+      },
+      "when": {
+        "connected_down": "false",
+        "connected_east": "false"
+      }
+    },
+    {
+      "apply": {
+        "model": "connectedtank:block/gold_connected_tank_border_down_west"
+      },
+      "when": {
+        "connected_down": "false",
+        "connected_west": "false"
+      }
+    },
+    {
+      "apply": {
+        "model": "connectedtank:block/gold_connected_tank_border_north_east"
+      },
+      "when": {
+        "connected_east": "false",
+        "connected_north": "false"
+      }
+    },
+    {
+      "apply": {
+        "model": "connectedtank:block/gold_connected_tank_border_north_west"
+      },
+      "when": {
+        "connected_north": "false",
+        "connected_west": "false"
+      }
+    },
+    {
+      "apply": {
+        "model": "connectedtank:block/gold_connected_tank_border_north_up"
+      },
+      "when": {
+        "connected_north": "false",
+        "connected_up": "false"
+      }
+    },
+    {
+      "apply": {
+        "model": "connectedtank:block/gold_connected_tank_border_north_down"
+      },
+      "when": {
+        "connected_down": "false",
+        "connected_north": "false"
+      }
+    },
+    {
+      "apply": {
+        "model": "connectedtank:block/gold_connected_tank_border_south_east"
+      },
+      "when": {
+        "connected_east": "false",
+        "connected_south": "false"
+      }
+    },
+    {
+      "apply": {
+        "model": "connectedtank:block/gold_connected_tank_border_south_west"
+      },
+      "when": {
+        "connected_south": "false",
+        "connected_west": "false"
+      }
+    },
+    {
+      "apply": {
+        "model": "connectedtank:block/gold_connected_tank_border_south_up"
+      },
+      "when": {
+        "connected_south": "false",
+        "connected_up": "false"
+      }
+    },
+    {
+      "apply": {
+        "model": "connectedtank:block/gold_connected_tank_border_south_down"
+      },
+      "when": {
+        "connected_down": "false",
+        "connected_south": "false"
+      }
+    },
+    {
+      "apply": {
+        "model": "connectedtank:block/gold_connected_tank_border_east_north"
+      },
+      "when": {
+        "connected_east": "false",
+        "connected_north": "false"
+      }
+    },
+    {
+      "apply": {
+        "model": "connectedtank:block/gold_connected_tank_border_east_south"
+      },
+      "when": {
+        "connected_east": "false",
+        "connected_south": "false"
+      }
+    },
+    {
+      "apply": {
+        "model": "connectedtank:block/gold_connected_tank_border_east_up"
+      },
+      "when": {
+        "connected_east": "false",
+        "connected_up": "false"
+      }
+    },
+    {
+      "apply": {
+        "model": "connectedtank:block/gold_connected_tank_border_east_down"
+      },
+      "when": {
+        "connected_down": "false",
+        "connected_east": "false"
+      }
+    },
+    {
+      "apply": {
+        "model": "connectedtank:block/gold_connected_tank_border_west_north"
+      },
+      "when": {
+        "connected_north": "false",
+        "connected_west": "false"
+      }
+    },
+    {
+      "apply": {
+        "model": "connectedtank:block/gold_connected_tank_border_west_south"
+      },
+      "when": {
+        "connected_south": "false",
+        "connected_west": "false"
+      }
+    },
+    {
+      "apply": {
+        "model": "connectedtank:block/gold_connected_tank_border_west_up"
+      },
+      "when": {
+        "connected_up": "false",
+        "connected_west": "false"
+      }
+    },
+    {
+      "apply": {
+        "model": "connectedtank:block/gold_connected_tank_border_west_down"
+      },
+      "when": {
+        "connected_down": "false",
+        "connected_west": "false"
+      }
     }
-  }
+  ]
 }

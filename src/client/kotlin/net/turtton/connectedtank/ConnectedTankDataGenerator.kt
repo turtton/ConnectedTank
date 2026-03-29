@@ -1,5 +1,7 @@
 package net.turtton.connectedtank
 
+import com.google.gson.JsonArray
+import com.google.gson.JsonObject
 import java.util.concurrent.CompletableFuture
 import net.fabricmc.fabric.api.client.datagen.v1.provider.FabricModelProvider
 import net.fabricmc.fabric.api.datagen.v1.DataGeneratorEntrypoint
@@ -13,9 +15,11 @@ import net.minecraft.advancement.criterion.RecipeUnlockedCriterion
 import net.minecraft.block.Block
 import net.minecraft.client.data.BlockStateModelGenerator
 import net.minecraft.client.data.ItemModelGenerator
-import net.minecraft.client.data.Models
-import net.minecraft.client.data.TextureMap
-import net.minecraft.client.data.TexturedModel
+import net.minecraft.client.data.ModelSupplier
+import net.minecraft.client.data.MultipartBlockModelDefinitionCreator
+import net.minecraft.client.render.model.json.ModelVariant
+import net.minecraft.client.render.model.json.MultipartModelConditionBuilder
+import net.minecraft.client.render.model.json.WeightedVariant
 import net.minecraft.data.recipe.RecipeExporter
 import net.minecraft.data.recipe.RecipeGenerator
 import net.minecraft.data.recipe.SmithingTransformRecipeJsonBuilder
@@ -33,7 +37,9 @@ import net.minecraft.registry.RegistryWrapper
 import net.minecraft.registry.tag.ItemTags
 import net.minecraft.registry.tag.TagKey
 import net.minecraft.util.Identifier
+import net.minecraft.util.collection.Pool
 import net.turtton.connectedtank.block.CTBlocks
+import net.turtton.connectedtank.block.ConnectedTankBlock
 import net.turtton.connectedtank.extension.ModIdentifier
 import net.turtton.connectedtank.recipe.TankUpgradeRecipe
 
@@ -47,19 +53,280 @@ object ConnectedTankDataGenerator : DataGeneratorEntrypoint {
     }
 
     private class ModelProvider(output: FabricDataOutput) : FabricModelProvider(output) {
-        private val glassTextureFactory = TexturedModel.makeFactory(
-            { TextureMap.all(Identifier.of("minecraft", "block/glass")) },
-            Models.CUBE_ALL,
-        )
-
         override fun generateBlockStateModels(generator: BlockStateModelGenerator) {
+            generateBorderTemplateModels(generator)
+
             for (block in CTBlocks.ALL_TANKS) {
-                generator.registerSingleton(block, glassTextureFactory)
-                generator.registerItemModel(block)
+                val tankBlock = block as ConnectedTankBlock
+                val tierId = tankBlock.tier.id
+
+                generateBaseModel(generator, tierId)
+                generateBorderChildModels(generator, tierId)
+                generateMultipartBlockState(generator, block, tierId)
+                generateItemModel(generator, block, tierId)
             }
         }
 
         override fun generateItemModels(generator: ItemModelGenerator) {}
+
+        private fun jsonArray(vararg values: Number): JsonArray = JsonArray().apply {
+            values.forEach { add(it) }
+        }
+
+        private val OPPOSITE_FACE: Map<String, String> = mapOf(
+            "north" to "south",
+            "south" to "north",
+            "east" to "west",
+            "west" to "east",
+            "up" to "down",
+            "down" to "up",
+        )
+
+        // borderStripElement と同じ理由で両面を持つ薄パネル（背面カリング対策）。
+        // 両面とも同じ方向の cullface を持つ。これにより隣接不透明ブロックによるカリングと
+        // isSideInvisible() による接続時カリングの両方で、壁全体が一括で消える。
+        private fun createSidePanelElement(
+            from: Triple<Number, Number, Number>,
+            to: Triple<Number, Number, Number>,
+            face: String,
+        ): JsonObject = JsonObject().apply {
+            add("from", jsonArray(from.first, from.second, from.third))
+            add("to", jsonArray(to.first, to.second, to.third))
+            val oppositeFace = requireNotNull(OPPOSITE_FACE[face]) { "Unknown face: $face" }
+            add(
+                "faces",
+                JsonObject().apply {
+                    add(
+                        face,
+                        JsonObject().apply {
+                            addProperty("texture", "#side")
+                            addProperty("cullface", face)
+                        },
+                    )
+                    add(
+                        oppositeFace,
+                        JsonObject().apply {
+                            addProperty("texture", "#side")
+                            // 裏面から見た時にテクスチャが左右反転して見えるよう U 軸を反転
+                            add("uv", jsonArray(16, 0, 0, 16))
+                            addProperty("cullface", face)
+                        },
+                    )
+                },
+            )
+        }
+
+        private val SIDE_PANEL_ELEMENTS: List<JsonObject> = listOf(
+            createSidePanelElement(Triple(0, 0, 0), Triple(0.01, 16, 16), "west"),
+            createSidePanelElement(Triple(15.99, 0, 0), Triple(16, 16, 16), "east"),
+            createSidePanelElement(Triple(0, 0, 0), Triple(16, 16, 0.01), "north"),
+            createSidePanelElement(Triple(0, 0, 15.99), Triple(16, 16, 16), "south"),
+        )
+
+        private fun generateBaseModel(generator: BlockStateModelGenerator, tierId: String) {
+            val modelId = Identifier.of("connectedtank", "block/$tierId")
+            val json = JsonObject().apply {
+                add(
+                    "textures",
+                    JsonObject().apply {
+                        addProperty("side", "connectedtank:block/${tierId}_side")
+                        addProperty("particle", "connectedtank:block/${tierId}_frame")
+                    },
+                )
+                add(
+                    "elements",
+                    JsonArray().apply { SIDE_PANEL_ELEMENTS.forEach { add(it) } },
+                )
+            }
+            generator.modelCollector.accept(modelId, ModelSupplier { json })
+        }
+
+        private fun generateBorderTemplateModels(generator: BlockStateModelGenerator) {
+            for ((direction, stripMap) in BORDER_STRIP_ELEMENTS) {
+                for ((stripDir, element) in stripMap) {
+                    val modelId = Identifier.of(
+                        "connectedtank",
+                        "block/tank_border_${direction}_$stripDir",
+                    )
+                    val json = JsonObject().apply {
+                        add(
+                            "textures",
+                            JsonObject().apply {
+                                addProperty("particle", "#frame")
+                            },
+                        )
+                        add("elements", JsonArray().apply { add(element) })
+                    }
+                    generator.modelCollector.accept(modelId, ModelSupplier { json })
+                }
+            }
+        }
+
+        private fun generateBorderChildModels(generator: BlockStateModelGenerator, tierId: String) {
+            for ((direction, stripMap) in BORDER_STRIP_ELEMENTS) {
+                for (stripDir in stripMap.keys) {
+                    val modelId = Identifier.of(
+                        "connectedtank",
+                        "block/${tierId}_border_${direction}_$stripDir",
+                    )
+                    val json = JsonObject().apply {
+                        addProperty(
+                            "parent",
+                            "connectedtank:block/tank_border_${direction}_$stripDir",
+                        )
+                        add(
+                            "textures",
+                            JsonObject().apply {
+                                addProperty("frame", "connectedtank:block/${tierId}_frame")
+                            },
+                        )
+                    }
+                    generator.modelCollector.accept(modelId, ModelSupplier { json })
+                }
+            }
+        }
+
+        private fun generateMultipartBlockState(
+            generator: BlockStateModelGenerator,
+            block: Block,
+            tierId: String,
+        ) {
+            val supplier = MultipartBlockModelDefinitionCreator.create(block)
+
+            // Base model (always applied)
+            val baseModelId = Identifier.of("connectedtank", "block/$tierId")
+            supplier.with(WeightedVariant(Pool.of(ModelVariant(baseModelId))))
+
+            // Border overlays (applied when NOT connected in each direction)
+            val directionProperties = mapOf(
+                "up" to ConnectedTankBlock.CONNECTED_UP,
+                "down" to ConnectedTankBlock.CONNECTED_DOWN,
+                "north" to ConnectedTankBlock.CONNECTED_NORTH,
+                "south" to ConnectedTankBlock.CONNECTED_SOUTH,
+                "east" to ConnectedTankBlock.CONNECTED_EAST,
+                "west" to ConnectedTankBlock.CONNECTED_WEST,
+            )
+            // 各ストリップ: border 方向が非接続 AND ストリップ方向も非接続のとき表示
+            for ((dirName, stripMap) in BORDER_STRIP_ELEMENTS) {
+                val borderProperty = requireNotNull(directionProperties[dirName])
+                for (stripDir in stripMap.keys) {
+                    val stripProperty = requireNotNull(directionProperties[stripDir])
+                    val modelId = Identifier.of(
+                        "connectedtank",
+                        "block/${tierId}_border_${dirName}_$stripDir",
+                    )
+                    supplier.with(
+                        MultipartModelConditionBuilder()
+                            .put(borderProperty, false)
+                            .put(stripProperty, false),
+                        WeightedVariant(Pool.of(ModelVariant(modelId))),
+                    )
+                }
+            }
+
+            generator.blockStateCollector.accept(supplier)
+        }
+
+        // The item model always includes all border overlays for every direction,
+        // because a standalone item is never connected to adjacent blocks.
+        private fun generateItemModel(generator: BlockStateModelGenerator, block: Block, tierId: String) {
+            val modelId = Identifier.of("connectedtank", "block/${tierId}_item")
+            val json = JsonObject().apply {
+                addProperty("parent", "minecraft:block/block")
+                add(
+                    "textures",
+                    JsonObject().apply {
+                        addProperty("side", "connectedtank:block/${tierId}_side")
+                        addProperty("frame", "connectedtank:block/${tierId}_frame")
+                        addProperty("particle", "connectedtank:block/${tierId}_frame")
+                    },
+                )
+                add(
+                    "elements",
+                    JsonArray().apply {
+                        SIDE_PANEL_ELEMENTS.forEach { add(it) }
+                        for ((_, stripMap) in BORDER_STRIP_ELEMENTS) {
+                            for ((_, element) in stripMap) {
+                                add(element)
+                            }
+                        }
+                    },
+                )
+            }
+            generator.modelCollector.accept(modelId, ModelSupplier { json })
+            generator.registerParentedItemModel(block, modelId)
+        }
+
+        // cullface を付けないこと。isSideInvisible() が Direction 単位で判定するため、
+        // partial face の border strip まで巻き添えで cull される。
+        // 各ストリップは表面 (face) と裏面 (OPPOSITE_FACE[face]) の両面を持つ。
+        // Minecraft の model quad は背面カリングされるため、透明ブロックを通して
+        // 裏側のボーダーを見えるようにするために反対面が必要。
+        // 各ストリップは個別モデルに分離し、multipart の AND 条件
+        // (connected_{borderDir}=false AND connected_{stripDir}=false) で制御する。
+        private fun borderStripElement(
+            from: Triple<Number, Number, Number>,
+            to: Triple<Number, Number, Number>,
+            face: String,
+        ): JsonObject = JsonObject().apply {
+            add("from", jsonArray(from.first, from.second, from.third))
+            add("to", jsonArray(to.first, to.second, to.third))
+            val frameFace = JsonObject().apply {
+                addProperty("texture", "#frame")
+            }
+            add(
+                "faces",
+                JsonObject().apply {
+                    add(face, frameFace)
+                    add(requireNotNull(OPPOSITE_FACE[face]) { "Unknown face: $face" }, frameFace)
+                },
+            )
+        }
+
+        // ボーダーストリップ要素。各ストリップは個別モデルに分離し、
+        // multipart の AND 条件で制御する。
+        // キー: border 方向 → ストリップの face 方向 → 両面要素
+        @Suppress("LongMethod")
+        private val BORDER_STRIP_ELEMENTS: Map<String, Map<String, JsonObject>> by lazy {
+            mapOf(
+                "up" to mapOf(
+                    "north" to borderStripElement(Triple(0, 15, -0.01), Triple(16, 16, 0.01), "north"),
+                    "south" to borderStripElement(Triple(0, 15, 15.99), Triple(16, 16, 16.01), "south"),
+                    "east" to borderStripElement(Triple(15.99, 15, 0), Triple(16.01, 16, 16), "east"),
+                    "west" to borderStripElement(Triple(-0.01, 15, 0), Triple(0.01, 16, 16), "west"),
+                ),
+                "down" to mapOf(
+                    "north" to borderStripElement(Triple(0, 0, -0.01), Triple(16, 1, 0.01), "north"),
+                    "south" to borderStripElement(Triple(0, 0, 15.99), Triple(16, 1, 16.01), "south"),
+                    "east" to borderStripElement(Triple(15.99, 0, 0), Triple(16.01, 1, 16), "east"),
+                    "west" to borderStripElement(Triple(-0.01, 0, 0), Triple(0.01, 1, 16), "west"),
+                ),
+                "north" to mapOf(
+                    "east" to borderStripElement(Triple(15.99, 0, 0), Triple(16.01, 16, 1), "east"),
+                    "west" to borderStripElement(Triple(-0.01, 0, 0), Triple(0.01, 16, 1), "west"),
+                    "up" to borderStripElement(Triple(0, 15.99, 0), Triple(16, 16.01, 1), "up"),
+                    "down" to borderStripElement(Triple(0, -0.01, 0), Triple(16, 0.01, 1), "down"),
+                ),
+                "south" to mapOf(
+                    "east" to borderStripElement(Triple(15.99, 0, 15), Triple(16.01, 16, 16), "east"),
+                    "west" to borderStripElement(Triple(-0.01, 0, 15), Triple(0.01, 16, 16), "west"),
+                    "up" to borderStripElement(Triple(0, 15.99, 15), Triple(16, 16.01, 16), "up"),
+                    "down" to borderStripElement(Triple(0, -0.01, 15), Triple(16, 0.01, 16), "down"),
+                ),
+                "east" to mapOf(
+                    "north" to borderStripElement(Triple(15, 0, -0.01), Triple(16, 16, 0.01), "north"),
+                    "south" to borderStripElement(Triple(15, 0, 15.99), Triple(16, 16, 16.01), "south"),
+                    "up" to borderStripElement(Triple(15, 15.99, 0), Triple(16, 16.01, 16), "up"),
+                    "down" to borderStripElement(Triple(15, -0.01, 0), Triple(16, 0.01, 16), "down"),
+                ),
+                "west" to mapOf(
+                    "north" to borderStripElement(Triple(0, 0, -0.01), Triple(1, 16, 0.01), "north"),
+                    "south" to borderStripElement(Triple(0, 0, 15.99), Triple(1, 16, 16.01), "south"),
+                    "up" to borderStripElement(Triple(0, 15.99, 0), Triple(1, 16.01, 16), "up"),
+                    "down" to borderStripElement(Triple(0, -0.01, 0), Triple(1, 0.01, 16), "down"),
+                ),
+            )
+        }
     }
 
     private class RecipeProvider(

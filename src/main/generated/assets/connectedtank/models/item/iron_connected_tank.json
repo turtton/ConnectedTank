@@ -1,6 +1,0 @@
-{
-  "parent": "minecraft:item/generated",
-  "textures": {
-    "layer0": "connectedtank:block/iron_connected_tank"
-  }
-}
