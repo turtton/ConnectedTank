@@ -38,7 +38,7 @@ object CTBlocks {
 
     private fun register(tier: TankTier): Block {
         val blockKey = RegistryKey.of(RegistryKeys.BLOCK, ModIdentifier(tier.id))
-        val settings = AbstractBlock.Settings.create().nonOpaque().registryKey(blockKey)
+        val settings = AbstractBlock.Settings.create().nonOpaque().strength(tier.hardness).registryKey(blockKey)
         val block = ConnectedTankBlock(tier, settings)
         return Registry.register(Registries.BLOCK, blockKey, block)
     }

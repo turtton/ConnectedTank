@@ -1,0 +1,11 @@
+{
+  "values": [
+    "connectedtank:connected_tank",
+    "connectedtank:stone_connected_tank",
+    "connectedtank:copper_connected_tank",
+    "connectedtank:iron_connected_tank",
+    "connectedtank:gold_connected_tank",
+    "connectedtank:diamond_connected_tank",
+    "connectedtank:netherite_connected_tank"
+  ]
+}
