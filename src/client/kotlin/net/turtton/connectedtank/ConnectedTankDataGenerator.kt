@@ -9,6 +9,7 @@ import net.fabricmc.fabric.api.datagen.v1.FabricDataGenerator
 import net.fabricmc.fabric.api.datagen.v1.FabricDataOutput
 import net.fabricmc.fabric.api.datagen.v1.provider.FabricLanguageProvider
 import net.fabricmc.fabric.api.datagen.v1.provider.FabricRecipeProvider
+import net.fabricmc.fabric.api.datagen.v1.provider.FabricTagProvider
 import net.minecraft.advancement.AdvancementRequirements
 import net.minecraft.advancement.AdvancementRewards
 import net.minecraft.advancement.criterion.RecipeUnlockedCriterion
@@ -34,6 +35,7 @@ import net.minecraft.recipe.book.RecipeCategory
 import net.minecraft.registry.RegistryKey
 import net.minecraft.registry.RegistryKeys
 import net.minecraft.registry.RegistryWrapper
+import net.minecraft.registry.tag.BlockTags
 import net.minecraft.registry.tag.ItemTags
 import net.minecraft.registry.tag.TagKey
 import net.minecraft.util.Identifier
@@ -48,6 +50,7 @@ object ConnectedTankDataGenerator : DataGeneratorEntrypoint {
         val pack = fabricDataGenerator.createPack()
         pack.addProvider(::ModelProvider)
         pack.addProvider(::RecipeProvider)
+        pack.addProvider(::BlockTagProvider)
         pack.addProvider(::EnglishLanguageProvider)
         pack.addProvider(::JapaneseLanguageProvider)
     }
@@ -326,6 +329,18 @@ object ConnectedTankDataGenerator : DataGeneratorEntrypoint {
                     "down" to borderStripElement(Triple(0, -0.01, 0), Triple(1, 0.01, 16), "down"),
                 ),
             )
+        }
+    }
+
+    private class BlockTagProvider(
+        output: FabricDataOutput,
+        registriesFuture: CompletableFuture<RegistryWrapper.WrapperLookup>,
+    ) : FabricTagProvider.BlockTagProvider(output, registriesFuture) {
+        override fun configure(wrapperLookup: RegistryWrapper.WrapperLookup) {
+            val pickaxeMineable = valueLookupBuilder(BlockTags.PICKAXE_MINEABLE)
+            for (block in CTBlocks.ALL_TANKS) {
+                pickaxeMineable.add(block)
+            }
         }
     }
 

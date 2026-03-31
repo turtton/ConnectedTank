@@ -20,7 +20,7 @@ object CTItems {
     val IRON_CONNECTED_TANK = registerTank(TankTier.IRON)
     val GOLD_CONNECTED_TANK = registerTank(TankTier.GOLD)
     val DIAMOND_CONNECTED_TANK = registerTank(TankTier.DIAMOND)
-    val NETHERITE_CONNECTED_TANK = registerTank(TankTier.NETHERITE)
+    val NETHERITE_CONNECTED_TANK = registerTank(TankTier.NETHERITE) { fireproof() }
 
     val ALL_TANK_ITEMS: List<BlockItem> = listOf(
         CONNECTED_TANK,
@@ -32,9 +32,15 @@ object CTItems {
         NETHERITE_CONNECTED_TANK,
     )
 
-    private fun registerTank(tier: TankTier): BlockItem {
+    private fun registerTank(
+        tier: TankTier,
+        additionalSettings: Item.Settings.() -> Unit = {},
+    ): BlockItem {
         val block = CTBlocks.ALL_TANKS.first { (it as? net.turtton.connectedtank.block.ConnectedTankBlock)?.tier == tier }
-        return register(tier.id, { BlockItem(block, it) }) { useBlockPrefixedTranslationKey() }
+        return register(tier.id, { BlockItem(block, it) }) {
+            useBlockPrefixedTranslationKey()
+            additionalSettings()
+        }
     }
 
     private fun <I : Item> register(
