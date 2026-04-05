@@ -12,6 +12,7 @@ import net.turtton.connectedtank.block.ConnectedTankBlockEntityRenderer
 import net.turtton.connectedtank.config.CTClientConfig
 import net.turtton.connectedtank.config.CTServerConfig
 import net.turtton.connectedtank.config.SyncedServerConfig
+import net.turtton.connectedtank.item.ConnectedTankItemRenderer
 import net.turtton.connectedtank.network.ConfigSyncPayload
 
 object ConnectedTankClient : ClientModInitializer {
@@ -20,6 +21,7 @@ object ConnectedTankClient : ClientModInitializer {
 
         CTBlocks.ALL_TANKS.forEach { BlockRenderLayerMap.putBlock(it, BlockRenderLayer.CUTOUT) }
         BlockEntityRendererFactories.register(CTBlockEntityTypes.CONNECTED_TANK, ::ConnectedTankBlockEntityRenderer)
+        ConnectedTankItemRenderer.register()
 
         ClientPlayNetworking.registerGlobalReceiver(ConfigSyncPayload.ID) { payload, _ ->
             SyncedServerConfig.syncedConfig = CTServerConfig(
