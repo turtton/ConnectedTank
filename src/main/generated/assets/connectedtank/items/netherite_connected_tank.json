@@ -1,6 +1,18 @@
 {
   "model": {
-    "type": "minecraft:model",
-    "model": "connectedtank:block/netherite_connected_tank_item"
+    "type": "minecraft:composite",
+    "models": [
+      {
+        "type": "minecraft:model",
+        "model": "connectedtank:block/netherite_connected_tank_item"
+      },
+      {
+        "type": "minecraft:special",
+        "base": "connectedtank:block/netherite_connected_tank_item",
+        "model": {
+          "type": "connectedtank:tank_fluid"
+        }
+      }
+    ]
   }
 }

@@ -6,12 +6,16 @@ import net.fabricmc.fabric.api.client.gametest.v1.context.TestServerContext
 import net.fabricmc.fabric.api.transfer.v1.fluid.FluidConstants
 import net.fabricmc.fabric.api.transfer.v1.fluid.FluidVariant
 import net.fabricmc.fabric.api.transfer.v1.transaction.Transaction
+import net.minecraft.client.gui.screen.ingame.InventoryScreen
 import net.minecraft.fluid.Fluids
+import net.minecraft.item.ItemStack
 import net.minecraft.server.MinecraftServer
 import net.minecraft.util.math.BlockPos
 import net.minecraft.world.World
 import net.turtton.connectedtank.block.CTBlocks
 import net.turtton.connectedtank.block.TankFluidStorage
+import net.turtton.connectedtank.block.TankTier
+import net.turtton.connectedtank.component.CTDataComponentTypes
 import net.turtton.connectedtank.config.CTClientConfig
 import net.turtton.connectedtank.config.CTServerConfig
 import net.turtton.connectedtank.world.FluidStoragePersistentState
@@ -46,6 +50,7 @@ object ConnectedTankClientGameTest : FabricClientGameTest {
             testVerticalPartialFillTopFace(context, server)
             testVerticalDifferentFluidsStacked(context, server)
             testVerticalSameFluidDifferentGroups(context, server)
+            testItemInventory(context, server)
         }
     }
 
@@ -258,5 +263,54 @@ object ConnectedTankClientGameTest : FabricClientGameTest {
         // Jade のサーバーデータ取得・描画のために長めに待機
         context.waitTicks(40)
         context.takeScreenshot("6_jade_fluid_tooltip")
+    }
+
+    private fun testItemInventory(context: ClientGameTestContext, server: TestServerContext) {
+        server.runCommand("gamemode survival @p")
+        context.waitTicks(5)
+
+        server.onServer { srv ->
+            val player = srv.playerManager.playerList.firstOrNull() ?: return@onServer
+            val inventory = player.inventory
+            inventory.clear()
+
+            var slot = 0
+            val water = FluidVariant.of(Fluids.WATER)
+            for (tier in TankTier.entries) {
+                val block = CTBlocks.ALL_TANKS.firstOrNull {
+                    (it as? net.turtton.connectedtank.block.ConnectedTankBlock)?.tier == tier
+                } ?: continue
+                val item = block.asItem()
+                val tierCapacity = CTServerConfig.instance.getTierCapacity(tier)
+
+                val halfStack = ItemStack(item).also { stack ->
+                    stack.set(
+                        CTDataComponentTypes.TANK_FLUID,
+                        TankFluidStorage.ExistingData(water, FluidConstants.BUCKET * tierCapacity / 2),
+                    )
+                }
+                if (slot < 36) inventory.setStack(slot++, halfStack)
+
+                val fullStack = ItemStack(item).also { stack ->
+                    stack.set(
+                        CTDataComponentTypes.TANK_FLUID,
+                        TankFluidStorage.ExistingData(water, FluidConstants.BUCKET * tierCapacity),
+                    )
+                }
+                if (slot < 36) inventory.setStack(slot++, fullStack)
+            }
+        }
+        context.waitTicks(5)
+
+        context.input.pressKey(GLFW.GLFW_KEY_E)
+        context.waitForScreen(InventoryScreen::class.java)
+        context.waitTicks(10)
+        context.takeScreenshot("10_item_inventory_all_tiers")
+
+        context.input.pressKey(GLFW.GLFW_KEY_ESCAPE)
+        context.waitTicks(3)
+
+        server.runCommand("gamemode spectator @p")
+        context.waitTicks(5)
     }
 }

@@ -16,6 +16,7 @@ import net.minecraft.advancement.criterion.RecipeUnlockedCriterion
 import net.minecraft.block.Block
 import net.minecraft.client.data.BlockStateModelGenerator
 import net.minecraft.client.data.ItemModelGenerator
+import net.minecraft.client.data.ItemModels
 import net.minecraft.client.data.ModelSupplier
 import net.minecraft.client.data.MultipartBlockModelDefinitionCreator
 import net.minecraft.client.render.model.json.ModelVariant
@@ -43,6 +44,7 @@ import net.minecraft.util.collection.Pool
 import net.turtton.connectedtank.block.CTBlocks
 import net.turtton.connectedtank.block.ConnectedTankBlock
 import net.turtton.connectedtank.extension.ModIdentifier
+import net.turtton.connectedtank.item.ConnectedTankItemRenderer
 import net.turtton.connectedtank.recipe.TankUpgradeRecipe
 
 object ConnectedTankDataGenerator : DataGeneratorEntrypoint {
@@ -257,7 +259,13 @@ object ConnectedTankDataGenerator : DataGeneratorEntrypoint {
                 )
             }
             generator.modelCollector.accept(modelId, ModelSupplier { json })
-            generator.registerParentedItemModel(block, modelId)
+            generator.itemModelOutput.accept(
+                block.asItem(),
+                ItemModels.composite(
+                    ItemModels.basic(modelId),
+                    ItemModels.special(modelId, ConnectedTankItemRenderer.Unbaked()),
+                ),
+            )
         }
 
         // cullface を付けないこと。isSideInvisible() が Direction 単位で判定するため、
