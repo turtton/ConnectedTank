@@ -25,6 +25,7 @@ import net.minecraft.util.hit.BlockHitResult
 import net.minecraft.util.math.BlockPos
 import net.minecraft.util.math.Direction
 import net.minecraft.util.math.random.Random
+import net.minecraft.world.BlockView
 import net.minecraft.world.World
 import net.minecraft.world.WorldView
 import net.minecraft.world.tick.ScheduledTickView
@@ -98,6 +99,10 @@ class ConnectedTankBlock(val tier: TankTier, settings: Settings) :
         val property = DIRECTION_PROPERTIES[direction] ?: return super.isSideInvisible(state, stateFrom, direction)
         return state.get(property) || super.isSideInvisible(state, stateFrom, direction)
     }
+
+    override fun isTransparent(state: BlockState): Boolean = true
+
+    override fun getAmbientOcclusionLightLevel(state: BlockState, world: BlockView, pos: BlockPos): Float = 1.0F
 
     override fun onStateReplaced(state: BlockState, world: ServerWorld, pos: BlockPos, moved: Boolean) {
         val persistentState = world.persistentStateManager.getOrCreate(FluidStoragePersistentState.TYPE)
