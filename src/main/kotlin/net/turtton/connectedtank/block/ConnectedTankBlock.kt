@@ -129,6 +129,15 @@ class ConnectedTankBlock(val tier: TankTier, settings: Settings) :
         super.onStateReplaced(state, world, pos, moved)
     }
 
+    override fun getPickStack(world: WorldView, pos: BlockPos, state: BlockState, includeData: Boolean): ItemStack {
+        val stack = super.getPickStack(world, pos, state, includeData)
+        if (!includeData || world !is ServerWorld) return stack
+        val persistentState = world.persistentStateManager.getOrCreate(FluidStoragePersistentState.TYPE)
+        val fluidData = computeFluidData(persistentState, pos, world) ?: return stack
+        stack.set(CTDataComponentTypes.TANK_FLUID, fluidData)
+        return stack
+    }
+
     override fun getDroppedStacks(state: BlockState, builder: LootWorldContext.Builder): List<ItemStack> {
         val stack = ItemStack(this)
         val origin = builder.get(LootContextParameters.ORIGIN)
@@ -139,18 +148,8 @@ class ConnectedTankBlock(val tier: TankTier, settings: Settings) :
                 // Explosion パス: ストレージがまだ存在する
                 val world = builder.world
                 val persistentState = world.persistentStateManager.getOrCreate(FluidStoragePersistentState.TYPE)
-                val tankStorage = persistentState.getStorage(pos)
-                if (tankStorage != null && !tankStorage.isResourceBlank) {
-                    val share = persistentState.calculateShare(pos, world, tier.bucketCapacity)
-                    if (share > 0) {
-                        TankFluidStorage.ExistingData(tankStorage.variant, share).also {
-                            pendingDropData[pos] = it
-                        }
-                    } else {
-                        null
-                    }
-                } else {
-                    null
+                computeFluidData(persistentState, pos, world)?.also {
+                    pendingDropData[pos] = it
                 }
             }
 
@@ -158,6 +157,18 @@ class ConnectedTankBlock(val tier: TankTier, settings: Settings) :
             stack.set(CTDataComponentTypes.TANK_FLUID, fluidData)
         }
         return listOf(stack)
+    }
+
+    private fun computeFluidData(
+        persistentState: FluidStoragePersistentState,
+        pos: BlockPos,
+        world: ServerWorld,
+    ): TankFluidStorage.ExistingData? {
+        val tankStorage = persistentState.getStorage(pos)
+        if (tankStorage == null || tankStorage.isResourceBlank) return null
+        val share = persistentState.calculateShare(pos, world, tier.bucketCapacity)
+        if (share <= 0) return null
+        return TankFluidStorage.ExistingData(tankStorage.variant, share)
     }
 
     override fun onPlaced(world: World?, pos: BlockPos?, state: BlockState?, placer: LivingEntity?, itemStack: ItemStack?) {
