@@ -33,16 +33,6 @@ jobs:
             echo "::error::Expected annotated tag but got ${TAG_TYPE}. Use 'git tag -a' to create an annotated tag."
             exit 1
           fi
-      - name: Validate version consistency
-        env:
-          GITHUB_REF_NAME: ${{ github.ref_name }}
-        run: |
-          MOD_VERSION=$(grep '^mod-version' gradle/libs.versions.toml | sed 's/.*= *"\(.*\)"/\1/')
-          EXPECTED_TAG="v${MOD_VERSION}"
-          if [ "$GITHUB_REF_NAME" != "$EXPECTED_TAG" ]; then
-            echo "::error::Tag '${GITHUB_REF_NAME}' does not match mod-version '${MOD_VERSION}' (expected '${EXPECTED_TAG}'). Update gradle/libs.versions.toml before tagging."
-            exit 1
-          fi
       - name: Validate secrets
         env:
           MODRINTH_ID: ${{ secrets.MODRINTH_ID }}
@@ -75,6 +65,11 @@ jobs:
             fi
             printf "%s\n" "$DELIMITER"
           } >> "$GITHUB_OUTPUT"
+      - name: Extract version from tag
+        id: version
+        env:
+          GITHUB_REF_NAME: ${{ github.ref_name }}
+        run: echo "mod_version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
       - name: Setup Java
         uses: actions/setup-java@dded0888837ed1f317902acf8a20df0ad188d165 # v5.0.0
         with:
@@ -86,9 +81,12 @@ jobs:
           cache-disabled: true
       - name: Build
         run: ./gradlew build
+        env:
+          MOD_VERSION: ${{ steps.version.outputs.mod_version }}
       - name: Publish
         run: ./gradlew publishMods
         env:
+          MOD_VERSION: ${{ steps.version.outputs.mod_version }}
           TAG_NAME: ${{ github.ref_name }}
           CHANGELOG: ${{ steps.tag_message.outputs.message }}
           MODRINTH_ID: ${{ secrets.MODRINTH_ID }}

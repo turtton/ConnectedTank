@@ -9,7 +9,7 @@ plugins {
     alias(libs.plugins.mod.publish.plugin)
 }
 
-version = libs.versions.mod.version.get()
+version = providers.environmentVariable("MOD_VERSION").orElse("dev").get()
 group = project.property("maven_group") as String
 
 base {

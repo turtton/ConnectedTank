@@ -9,8 +9,6 @@ kotlin = "2.2.10"
 spotless = "7.2.1"
 mod-publish-plugin = "0.8.4"
 
-mod-version = "1.0.0"
-
 rei = "20.0.811"
 jade = "19.3.2+fabric"
 yacl = "3.7.1+1.21.6-fabric"
