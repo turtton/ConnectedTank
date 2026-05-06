@@ -6,6 +6,7 @@ plugins {
     id("maven-publish")
     alias(libs.plugins.kotlin.jvm)
     alias(libs.plugins.spotless)
+    alias(libs.plugins.mod.publish.plugin)
 }
 
 version = libs.versions.mod.version.get()
@@ -201,6 +202,35 @@ spotless {
     }
     java {
         palantirJavaFormat()
+    }
+}
+
+publishMods {
+    file.set(tasks.remapJar.flatMap { it.archiveFile })
+    additionalFiles.from(tasks.remapSourcesJar.flatMap { it.archiveFile })
+    changelog.set(providers.environmentVariable("CHANGELOG").orElse(""))
+    type.set(STABLE)
+    modLoaders.add("fabric")
+
+    modrinth {
+        projectId.set(providers.environmentVariable("MODRINTH_ID"))
+        accessToken.set(providers.environmentVariable("MODRINTH_TOKEN"))
+        minecraftVersions.add(libs.versions.minecraft)
+        requires("fabric-api")
+        requires("fabric-language-kotlin")
+    }
+    curseforge {
+        projectId.set(providers.environmentVariable("CURSEFORGE_ID"))
+        accessToken.set(providers.environmentVariable("CURSEFORGE_TOKEN"))
+        minecraftVersions.add(libs.versions.minecraft)
+        requires("fabric-api")
+        requires("fabric-language-kotlin")
+    }
+    github {
+        repository.set("turtton/ConnectedTank")
+        accessToken.set(providers.environmentVariable("GITHUB_TOKEN"))
+        commitish.set("main")
+        tagName.set(providers.environmentVariable("TAG_NAME").orElse("v${project.version}"))
     }
 }
 

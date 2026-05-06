@@ -1,0 +1,98 @@
+name: Publish
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    environment: release
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Validate tag
+        env:
+          GITHUB_REF_NAME: ${{ github.ref_name }}
+        run: |
+          TAG_TYPE=$(git cat-file -t "refs/tags/${GITHUB_REF_NAME}")
+          if [ "$TAG_TYPE" != "tag" ]; then
+            echo "::error::Expected annotated tag but got ${TAG_TYPE}. Use 'git tag -a' to create an annotated tag."
+            exit 1
+          fi
+      - name: Validate version consistency
+        env:
+          GITHUB_REF_NAME: ${{ github.ref_name }}
+        run: |
+          MOD_VERSION=$(grep '^mod-version' gradle/libs.versions.toml | sed 's/.*= *"\(.*\)"/\1/')
+          EXPECTED_TAG="v${MOD_VERSION}"
+          if [ "$GITHUB_REF_NAME" != "$EXPECTED_TAG" ]; then
+            echo "::error::Tag '${GITHUB_REF_NAME}' does not match mod-version '${MOD_VERSION}' (expected '${EXPECTED_TAG}'). Update gradle/libs.versions.toml before tagging."
+            exit 1
+          fi
+      - name: Validate secrets
+        env:
+          MODRINTH_ID: ${{ secrets.MODRINTH_ID }}
+          MODRINTH_TOKEN: ${{ secrets.MODRINTH_TOKEN }}
+          CURSEFORGE_ID: ${{ secrets.CURSEFORGE_ID }}
+          CURSEFORGE_TOKEN: ${{ secrets.CURSEFORGE_TOKEN }}
+        run: |
+          MISSING=""
+          [ -z "$MODRINTH_ID" ] && MISSING="${MISSING} MODRINTH_ID"
+          [ -z "$MODRINTH_TOKEN" ] && MISSING="${MISSING} MODRINTH_TOKEN"
+          [ -z "$CURSEFORGE_ID" ] && MISSING="${MISSING} CURSEFORGE_ID"
+          [ -z "$CURSEFORGE_TOKEN" ] && MISSING="${MISSING} CURSEFORGE_TOKEN"
+          if [ -n "$MISSING" ]; then
+            echo "::error::Missing required secrets:${MISSING}"
+            exit 1
+          fi
+      - name: Get tag annotation message
+        id: tag_message
+        env:
+          GITHUB_REF_NAME: ${{ github.ref_name }}
+        run: |
+          TAG_SUBJECT=$(git tag -l --format='%(contents:subject)' "${GITHUB_REF_NAME}")
+          TAG_BODY=$(git tag -l --format='%(contents:body)' "${GITHUB_REF_NAME}")
+          DELIMITER=$(openssl rand -hex 16)
+          {
+            printf "message<<%s\n" "$DELIMITER"
+            printf "%s\n" "$TAG_SUBJECT"
+            if [ -n "$TAG_BODY" ]; then
+              printf "\n%s\n" "$TAG_BODY"
+            fi
+            printf "%s\n" "$DELIMITER"
+          } >> "$GITHUB_OUTPUT"
+      - name: Setup Java
+        uses: actions/setup-java@dded0888837ed1f317902acf8a20df0ad188d165 # v5.0.0
+        with:
+          java-version: '21'
+          distribution: 'microsoft'
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@017a9effdb900e5b5b2fddfb590a105619dca3c3 # v4.4.2
+        with:
+          cache-disabled: true
+      - name: Build
+        run: ./gradlew build
+      - name: Publish
+        run: ./gradlew publishMods
+        env:
+          TAG_NAME: ${{ github.ref_name }}
+          CHANGELOG: ${{ steps.tag_message.outputs.message }}
+          MODRINTH_ID: ${{ secrets.MODRINTH_ID }}
+          MODRINTH_TOKEN: ${{ secrets.MODRINTH_TOKEN }}
+          CURSEFORGE_ID: ${{ secrets.CURSEFORGE_ID }}
+          CURSEFORGE_TOKEN: ${{ secrets.CURSEFORGE_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
