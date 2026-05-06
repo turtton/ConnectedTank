@@ -24,7 +24,7 @@ class TankFluidStorage(val bucketCapacity: Int = CTServerConfig.instance.tankBuc
 
     override fun getBlankVariant(): FluidVariant = FluidVariant.blank()
 
-    override fun getCapacity(variant: FluidVariant?): Long = bucketCapacity * FluidConstants.BUCKET
+    override fun getCapacity(variant: FluidVariant): Long = bucketCapacity * FluidConstants.BUCKET
 
     override fun onFinalCommit() {
         onChanged?.invoke()

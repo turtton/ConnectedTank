@@ -46,7 +46,7 @@ jobs:
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: Artifacts
-          path: build/libs/
+          path: versions/*/build/libs/
 
   client-game-test:
     name: Client Game Test
@@ -72,4 +72,4 @@ jobs:
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: Client Game Test Screenshots
-          path: build/run/clientGameTest/screenshots/
+          path: versions/*/build/run/clientGameTest/screenshots/

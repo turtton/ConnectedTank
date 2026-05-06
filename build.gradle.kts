@@ -2,14 +2,16 @@ import java.util.concurrent.TimeUnit
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
+    id("dev.kikugie.stonecutter")
     alias(libs.plugins.fabric.loom)
     id("maven-publish")
     alias(libs.plugins.kotlin.jvm)
-    alias(libs.plugins.spotless)
     alias(libs.plugins.mod.publish.plugin)
 }
 
-version = providers.environmentVariable("MOD_VERSION").orElse("dev").get()
+val mcVersion = stonecutter.current.version
+
+version = providers.environmentVariable("MOD_VERSION").orElse("dev").get() + "+mc$mcVersion"
 group = project.property("maven_group") as String
 
 base {
@@ -109,34 +111,64 @@ loom {
 }
 
 dependencies {
-    // To change the versions see the gradle/libs.versions.toml file
-    minecraft(libs.minecraft)
-    mappings(variantOf(libs.yarn.mappings) { classifier("v2") })
+    val yarnMappings = when (mcVersion) {
+        "1.21.8" -> "1.21.8+build.1"
+        "1.21.11" -> "1.21.11+build.5"
+        else -> error("Unsupported MC version: $mcVersion")
+    }
+    val fabricApiVersion = when (mcVersion) {
+        "1.21.8" -> "0.132.0+1.21.8"
+        "1.21.11" -> "0.141.3+1.21.11"
+        else -> error("Unsupported MC version: $mcVersion")
+    }
+    val yaclVersion = when (mcVersion) {
+        "1.21.8" -> "3.7.1+1.21.6-fabric"
+        "1.21.11" -> "3.8.2+1.21.11-fabric"
+        else -> error("Unsupported MC version: $mcVersion")
+    }
+    val modmenuVersion = when (mcVersion) {
+        "1.21.8" -> "15.0.1"
+        "1.21.11" -> "17.0.0"
+        else -> error("Unsupported MC version: $mcVersion")
+    }
+    val reiVersion = when (mcVersion) {
+        "1.21.8" -> "20.0.811"
+        "1.21.11" -> "21.11.814"
+        else -> error("Unsupported MC version: $mcVersion")
+    }
+    val jadeVersion = when (mcVersion) {
+        "1.21.8" -> "19.3.2+fabric"
+        "1.21.11" -> "21.1.6+fabric"
+        else -> error("Unsupported MC version: $mcVersion")
+    }
+
+    minecraft("com.mojang:minecraft:$mcVersion")
+    mappings("net.fabricmc:yarn:$yarnMappings:v2")
     modImplementation(libs.fabric.loader)
 
-    // Fabric API. This is technically optional, but you probably want it anyway.
-    modImplementation(libs.fabric.api)
+    modImplementation("net.fabricmc.fabric-api:fabric-api:$fabricApiVersion")
     modImplementation(libs.fabric.language.kotlin)
 
-    "productionRuntimeMods"(libs.fabric.api)
+    "productionRuntimeMods"("net.fabricmc.fabric-api:fabric-api:$fabricApiVersion")
     "productionRuntimeMods"(libs.fabric.language.kotlin)
 
-    modCompileOnly(libs.yacl)
-    modRuntimeOnly(libs.yacl)
-    modCompileOnly(libs.modmenu)
-    modRuntimeOnly(libs.modmenu)
+    modCompileOnly("dev.isxander:yet-another-config-lib:$yaclVersion")
+    modRuntimeOnly("dev.isxander:yet-another-config-lib:$yaclVersion")
+    modCompileOnly("com.terraformersmc:modmenu:$modmenuVersion")
+    modRuntimeOnly("com.terraformersmc:modmenu:$modmenuVersion")
 
-    modRuntimeOnly(libs.rei)
-    modCompileOnly(libs.jade)
-    modRuntimeOnly(libs.jade)
+    modRuntimeOnly("me.shedaniel:RoughlyEnoughItems-fabric:$reiVersion")
+    modCompileOnly("maven.modrinth:jade:$jadeVersion")
+    modRuntimeOnly("maven.modrinth:jade:$jadeVersion")
 }
 
 tasks {
     processResources {
         inputs.property("version", project.version)
+        inputs.property("minecraft_version", mcVersion)
 
         filesMatching("fabric.mod.json") {
-            expand("version" to inputs.properties["version"])
+            expand(mapOf("version" to inputs.properties["version"], "minecraft_version" to inputs.properties["minecraft_version"]))
         }
     }
     jar {
@@ -148,10 +180,6 @@ tasks {
     }
     withType<JavaCompile>().configureEach {
         options.release.set(21)
-    }
-    @Suppress("UnstableApiUsage")
-    named<UpdateDaemonJvm>("updateDaemonJvm") {
-        languageVersion = JavaLanguageVersion.of(21)
     }
     val clientGametestJar = register<Jar>("clientGametestJar") {
         from(clientGametestSourceSet.output)
@@ -193,18 +221,6 @@ java {
     targetCompatibility = JavaVersion.VERSION_21
 }
 
-spotless {
-    kotlin {
-        ktlint()
-    }
-    kotlinGradle {
-        ktlint()
-    }
-    java {
-        palantirJavaFormat()
-    }
-}
-
 publishMods {
     file.set(tasks.remapJar.flatMap { it.archiveFile })
     additionalFiles.from(tasks.remapSourcesJar.flatMap { it.archiveFile })
@@ -215,22 +231,16 @@ publishMods {
     modrinth {
         projectId.set(providers.environmentVariable("MODRINTH_ID"))
         accessToken.set(providers.environmentVariable("MODRINTH_TOKEN"))
-        minecraftVersions.add(libs.versions.minecraft)
+        minecraftVersions.add(mcVersion)
         requires("fabric-api")
         requires("fabric-language-kotlin")
     }
     curseforge {
         projectId.set(providers.environmentVariable("CURSEFORGE_ID"))
         accessToken.set(providers.environmentVariable("CURSEFORGE_TOKEN"))
-        minecraftVersions.add(libs.versions.minecraft)
+        minecraftVersions.add(mcVersion)
         requires("fabric-api")
         requires("fabric-language-kotlin")
-    }
-    github {
-        repository.set("turtton/ConnectedTank")
-        accessToken.set(providers.environmentVariable("GITHUB_TOKEN"))
-        commitish.set("main")
-        tagName.set(providers.environmentVariable("TAG_NAME").orElse("v${project.version}"))
     }
 }
 

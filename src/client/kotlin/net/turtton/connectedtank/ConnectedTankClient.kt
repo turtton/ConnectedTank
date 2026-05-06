@@ -9,6 +9,8 @@ import net.minecraft.client.render.block.entity.BlockEntityRendererFactories
 import net.turtton.connectedtank.block.CTBlockEntityTypes
 import net.turtton.connectedtank.block.CTBlocks
 import net.turtton.connectedtank.block.ConnectedTankBlockEntityRenderer
+//? if >=1.21.11
+/*import net.turtton.connectedtank.block.ConnectedTankRenderState*/
 import net.turtton.connectedtank.config.CTClientConfig
 import net.turtton.connectedtank.config.CTServerConfig
 import net.turtton.connectedtank.config.SyncedServerConfig
@@ -20,7 +22,15 @@ object ConnectedTankClient : ClientModInitializer {
         CTClientConfig.load()
 
         CTBlocks.ALL_TANKS.forEach { BlockRenderLayerMap.putBlock(it, BlockRenderLayer.CUTOUT) }
-        BlockEntityRendererFactories.register(CTBlockEntityTypes.CONNECTED_TANK, ::ConnectedTankBlockEntityRenderer)
+        //? if >=1.21.11 {
+        /*BlockEntityRendererFactories.register<_, ConnectedTankRenderState>(
+            CTBlockEntityTypes.CONNECTED_TANK,
+        ) { context -> ConnectedTankBlockEntityRenderer(context) }*/
+        //?} else {
+        BlockEntityRendererFactories.register(
+            CTBlockEntityTypes.CONNECTED_TANK,
+        ) { context -> ConnectedTankBlockEntityRenderer(context) }
+        //?}
         ConnectedTankItemRenderer.register()
 
         ClientPlayNetworking.registerGlobalReceiver(ConfigSyncPayload.ID) { payload, _ ->
