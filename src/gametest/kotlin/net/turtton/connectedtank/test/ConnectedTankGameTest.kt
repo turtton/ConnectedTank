@@ -16,6 +16,7 @@ import net.turtton.connectedtank.block.CTBlocks
 import net.turtton.connectedtank.block.ConnectedTankBlock
 import net.turtton.connectedtank.block.TankFluidStorage
 import net.turtton.connectedtank.block.TankTier
+import net.turtton.connectedtank.component.CTDataComponentTypes
 import net.turtton.connectedtank.config.CTServerConfig
 import net.turtton.connectedtank.item.CTItems
 import net.turtton.connectedtank.world.FluidStoragePersistentState
@@ -849,6 +850,110 @@ object ConnectedTankGameTest {
         context.assertTrue(
             storage1!!.bucketCapacity == expectedCapacity,
             Text.literal("Combined capacity should be $expectedCapacity but was ${storage1.bucketCapacity}"),
+        )
+        context.complete()
+    }
+
+    // === getPickStack テスト ===
+
+    @GameTest
+    fun pickStackWithIncludeDataContainsFluid(context: TestContext) {
+        val tankPos = BlockPos(0, 2, 0)
+        context.placeTank(tankPos)
+
+        val state = context.getFluidState()
+        val water = FluidVariant.of(Fluids.WATER)
+        val storage = state.getStorage(context.getAbsolutePos(tankPos))!!
+        Transaction.openOuter().use { tx ->
+            storage.insert(water, FluidConstants.BUCKET * 5, tx)
+            tx.commit()
+        }
+
+        val world = context.getWorld()
+        val absPos = context.getAbsolutePos(tankPos)
+        val blockState = world.getBlockState(absPos)
+        val block = blockState.block as ConnectedTankBlock
+        val stack = block.getPickStack(world, absPos, blockState, true)
+
+        val fluidData = stack.get(CTDataComponentTypes.TANK_FLUID)
+        context.assertTrue(fluidData != null, Text.literal("Pick stack should have fluid data"))
+        context.assertTrue(fluidData!!.variant == water, Text.literal("Variant should be water"))
+        context.assertTrue(
+            fluidData.amount == FluidConstants.BUCKET * 5,
+            Text.literal("Should have 5 buckets but was ${fluidData.amount / FluidConstants.BUCKET}"),
+        )
+        context.complete()
+    }
+
+    @GameTest
+    fun pickStackWithoutIncludeDataHasNoFluid(context: TestContext) {
+        val tankPos = BlockPos(0, 2, 0)
+        context.placeTank(tankPos)
+
+        val state = context.getFluidState()
+        val water = FluidVariant.of(Fluids.WATER)
+        val storage = state.getStorage(context.getAbsolutePos(tankPos))!!
+        Transaction.openOuter().use { tx ->
+            storage.insert(water, FluidConstants.BUCKET * 5, tx)
+            tx.commit()
+        }
+
+        val world = context.getWorld()
+        val absPos = context.getAbsolutePos(tankPos)
+        val blockState = world.getBlockState(absPos)
+        val block = blockState.block as ConnectedTankBlock
+        val stack = block.getPickStack(world, absPos, blockState, false)
+
+        val fluidData = stack.get(CTDataComponentTypes.TANK_FLUID)
+        context.assertTrue(fluidData == null, Text.literal("Pick stack without includeData should have no fluid data"))
+        context.complete()
+    }
+
+    @GameTest
+    fun pickStackFromEmptyTankHasNoFluidData(context: TestContext) {
+        val tankPos = BlockPos(0, 2, 0)
+        context.placeTank(tankPos)
+
+        val world = context.getWorld()
+        val absPos = context.getAbsolutePos(tankPos)
+        val blockState = world.getBlockState(absPos)
+        val block = blockState.block as ConnectedTankBlock
+        val stack = block.getPickStack(world, absPos, blockState, true)
+
+        val fluidData = stack.get(CTDataComponentTypes.TANK_FLUID)
+        context.assertTrue(fluidData == null, Text.literal("Empty tank pick stack should have no fluid data"))
+        context.complete()
+    }
+
+    @GameTest
+    fun pickStackFromConnectedTanksCalculatesShare(context: TestContext) {
+        val pos1 = BlockPos(0, 2, 0)
+        val pos2 = BlockPos(1, 2, 0)
+        val pos3 = BlockPos(2, 2, 0)
+        context.placeTank(pos1)
+        context.placeTank(pos2)
+        context.placeTank(pos3)
+
+        val state = context.getFluidState()
+        val water = FluidVariant.of(Fluids.WATER)
+        val storage = state.getStorage(context.getAbsolutePos(pos1))!!
+        Transaction.openOuter().use { tx ->
+            storage.insert(water, FluidConstants.BUCKET * 30, tx)
+            tx.commit()
+        }
+
+        val world = context.getWorld()
+        val absPos2 = context.getAbsolutePos(pos2)
+        val blockState = world.getBlockState(absPos2)
+        val block = blockState.block as ConnectedTankBlock
+        val stack = block.getPickStack(world, absPos2, blockState, true)
+
+        val fluidData = stack.get(CTDataComponentTypes.TANK_FLUID)
+        context.assertTrue(fluidData != null, Text.literal("Pick stack should have fluid data"))
+        context.assertTrue(fluidData!!.variant == water, Text.literal("Variant should be water"))
+        context.assertTrue(
+            fluidData.amount == FluidConstants.BUCKET * 10,
+            Text.literal("Share should be 10 buckets but was ${fluidData.amount / FluidConstants.BUCKET}"),
         )
         context.complete()
     }

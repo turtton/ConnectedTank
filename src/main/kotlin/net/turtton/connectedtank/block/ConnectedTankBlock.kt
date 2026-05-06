@@ -129,7 +129,7 @@ class ConnectedTankBlock(val tier: TankTier, settings: Settings) :
         super.onStateReplaced(state, world, pos, moved)
     }
 
-    override fun getPickStack(world: WorldView, pos: BlockPos, state: BlockState, includeData: Boolean): ItemStack {
+    public override fun getPickStack(world: WorldView, pos: BlockPos, state: BlockState, includeData: Boolean): ItemStack {
         val stack = super.getPickStack(world, pos, state, includeData)
         if (!includeData || world !is ServerWorld) return stack
         val persistentState = world.persistentStateManager.getOrCreate(FluidStoragePersistentState.TYPE)
