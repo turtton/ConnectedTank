@@ -67,6 +67,8 @@ jobs:
         uses: gradle/actions/setup-gradle@017a9effdb900e5b5b2fddfb590a105619dca3c3 # v4.4.2
       - name: Run client game tests
         run: ./gradlew runProductionClientGameTest
+        env:
+          GRADLE_OPTS: -Dorg.gradle.jvmargs=-Xmx2g
       - name: Upload screenshots
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
