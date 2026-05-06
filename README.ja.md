@@ -46,7 +46,7 @@
 
 ## 動作要件
 
-- Minecraft 1.21.8
+- Minecraft 1.21.8 / 1.21.11
 - Fabric Loader >= 0.17.2
 - Fabric API
 - Fabric Language Kotlin
@@ -84,7 +84,7 @@
 ./gradlew build
 ```
 
-ビルド成果物は `build/libs/` に出力されます。
+ビルド成果物は `versions/*/build/libs/` に出力されます。
 
 ## ライセンス
 

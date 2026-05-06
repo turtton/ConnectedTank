@@ -5,7 +5,13 @@ import net.minecraft.client.render.LightmapTextureManager
 import net.minecraft.client.render.OverlayTexture
 import net.minecraft.client.render.RenderLayer
 import net.minecraft.client.render.VertexConsumer
+//? if >=1.21.11 {
+/*import net.minecraft.client.render.RenderLayers
+import net.minecraft.client.render.command.OrderedRenderCommandQueue
+*/
+//?} else {
 import net.minecraft.client.render.VertexConsumerProvider
+//?}
 import net.minecraft.client.texture.Sprite
 import net.minecraft.client.util.math.MatrixStack
 
@@ -38,14 +44,22 @@ object FluidRenderHelper {
     private const val SECONDARY_SPEED = 0.18f
 
     fun renderFluid(
+        //? if >=1.21.11 {
+        /*queue: OrderedRenderCommandQueue,*/
+        //?} else {
         vertexConsumers: VertexConsumerProvider,
+        //?}
         matrices: MatrixStack,
         sprite: Sprite,
         argb: Int,
         fillLevel: Float,
         wave: WaveParams,
         neighbors: NeighborMask = NeighborMask(),
+        //? if >=1.21.11 {
+        /*renderLayer: RenderLayer = RenderLayers.entityTranslucent(sprite.atlasId),*/
+        //?} else {
         renderLayer: RenderLayer = RenderLayer.getEntityTranslucent(sprite.atlasId),
+        //?}
     ) {
         if (fillLevel <= 0f || wave.gridSize <= 0) return
 
@@ -57,6 +71,24 @@ object FluidRenderHelper {
 
         val fluidTop = minY + (1f - INSET - minY) * fillLevel
 
+        //? if >=1.21.11 {
+        /*queue.submitCustom(matrices, renderLayer) { entry, consumer ->
+            renderAnimatedFluid(
+                consumer,
+                entry,
+                sprite,
+                argb,
+                fluidTop,
+                wave,
+                minX,
+                maxX,
+                minY,
+                minZ,
+                maxZ,
+                neighbors,
+            )
+        }*/
+        //?} else {
         val consumer = vertexConsumers.getBuffer(renderLayer)
         val entry = matrices.peek()
 
@@ -74,6 +106,7 @@ object FluidRenderHelper {
             maxZ,
             neighbors,
         )
+        //?}
     }
 
     @Suppress("LongParameterList")

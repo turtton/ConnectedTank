@@ -204,9 +204,8 @@ class ConnectedTankBlock(val tier: TankTier, settings: Settings) :
         return ActionResult.SUCCESS
     }
 
-    override fun onUseWithItem(stack: ItemStack?, state: BlockState?, world: World?, pos: BlockPos?, player: PlayerEntity?, hand: Hand?, hit: BlockHitResult?): ActionResult? {
+    override fun onUseWithItem(stack: ItemStack, state: BlockState, world: World, pos: BlockPos, player: PlayerEntity, hand: Hand, hit: BlockHitResult): ActionResult {
         if (world !is ServerWorld) return ActionResult.SUCCESS
-        if (pos == null) return ActionResult.PASS_TO_DEFAULT_BLOCK_ACTION
 
         val persistentState = world.persistentStateManager.getOrCreate(FluidStoragePersistentState.TYPE)
         val tankStorage = persistentState.getStorage(pos) ?: return ActionResult.PASS_TO_DEFAULT_BLOCK_ACTION

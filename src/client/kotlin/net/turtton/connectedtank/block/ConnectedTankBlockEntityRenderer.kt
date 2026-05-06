@@ -2,6 +2,137 @@ package net.turtton.connectedtank.block
 
 import kotlin.math.max
 import net.fabricmc.fabric.api.transfer.v1.client.fluid.FluidVariantRendering
+//? if >=1.21.11 {
+/*import net.fabricmc.fabric.api.transfer.v1.fluid.FluidVariant
+import net.minecraft.client.render.block.entity.BlockEntityRenderer
+import net.minecraft.client.render.block.entity.BlockEntityRendererFactory
+import net.minecraft.client.render.block.entity.state.BlockEntityRenderState
+import net.minecraft.client.render.command.ModelCommandRenderer.CrumblingOverlayCommand
+import net.minecraft.client.render.command.OrderedRenderCommandQueue
+import net.minecraft.client.render.state.CameraRenderState
+import net.minecraft.client.texture.Sprite
+import net.minecraft.client.util.math.MatrixStack
+import net.minecraft.util.math.BlockPos
+import net.minecraft.util.math.Vec3d
+import net.turtton.connectedtank.config.CTClientConfig
+import net.turtton.connectedtank.config.CTClientConfig.RenderQuality
+import net.turtton.connectedtank.render.FluidRenderHelper
+import net.turtton.connectedtank.render.NeighborMask
+import net.turtton.connectedtank.render.WaveParams
+
+class ConnectedTankRenderState : BlockEntityRenderState() {
+    var sprite: Sprite? = null
+    var argb: Int = 0
+    var localFillLevel: Float = 0f
+    var wave: WaveParams = WaveParams(animTime = 0f, gridSize = 4)
+    var neighbors: NeighborMask = NeighborMask()
+}
+
+class ConnectedTankBlockEntityRenderer(
+    @Suppress("UNUSED_PARAMETER") context: BlockEntityRendererFactory.Context,
+) : BlockEntityRenderer<ConnectedTankBlockEntity, ConnectedTankRenderState> {
+    companion object {
+        private const val DECAY_TICKS = 60f
+    }
+
+    override fun createRenderState(): ConnectedTankRenderState = ConnectedTankRenderState()
+
+    override fun updateRenderState(
+        entity: ConnectedTankBlockEntity,
+        state: ConnectedTankRenderState,
+        tickDelta: Float,
+        cameraPos: Vec3d,
+        crumbling: CrumblingOverlayCommand?,
+    ) {
+        super.updateRenderState(entity, state, tickDelta, cameraPos, crumbling)
+
+        state.localFillLevel = entity.localFillLevel
+        if (entity.localFillLevel <= 0f || entity.fluidVariant.isBlank) {
+            state.sprite = null
+            return
+        }
+
+        state.sprite = FluidVariantRendering.getSprite(entity.fluidVariant)
+        val color = FluidVariantRendering.getColor(entity.fluidVariant)
+        state.argb = (0xFF shl 24) or (color and 0x00FFFFFF)
+
+        val world = entity.world
+        val pos = entity.pos
+        val myGroupId = entity.groupId
+
+        fun sameGroupNeighbor(neighborPos: BlockPos): ConnectedTankBlockEntity? {
+            if (myGroupId == null) return null
+            val neighbor = world?.getBlockEntity(neighborPos) as? ConnectedTankBlockEntity ?: return null
+            return if (neighbor.groupId == myGroupId) neighbor else null
+        }
+
+        val neighborDown = sameGroupNeighbor(pos.down())
+        val neighborUp = sameGroupNeighbor(pos.up())
+
+        // 垂直: 下タンクが満杯で同一グループのときのみ連続とみなす
+        val hasDown = neighborDown != null && neighborDown.localFillLevel >= 1.0f
+        // 垂直: 自身が満杯かつ上タンクに同一グループの液体があるときのみ上面を省略
+        val hasUp = neighborUp != null && entity.localFillLevel >= 1.0f && neighborUp.localFillLevel > 0f
+        // 水平: 同一グループで液体が存在する隣接タンクのみ連続
+        val hasNorth = sameGroupNeighbor(pos.north())?.let { it.localFillLevel > 0f } == true
+        val hasSouth = sameGroupNeighbor(pos.south())?.let { it.localFillLevel > 0f } == true
+        val hasWest = sameGroupNeighbor(pos.west())?.let { it.localFillLevel > 0f } == true
+        val hasEast = sameGroupNeighbor(pos.east())?.let { it.localFillLevel > 0f } == true
+
+        state.neighbors = NeighborMask(
+            up = hasUp,
+            down = hasDown,
+            north = hasNorth,
+            south = hasSouth,
+            west = hasWest,
+            east = hasEast,
+        )
+
+        val quality = CTClientConfig.instance.renderQuality
+        val worldTime = world?.time?.toFloat() ?: 0f
+        val elapsedTicks = worldTime - entity.waveStartTick.toFloat()
+        val decayFactor = if (quality == RenderQuality.LOW) 0f else max(0f, 1f - elapsedTicks / DECAY_TICKS)
+        val animTime = worldTime + tickDelta
+        // gridSize は decayFactor == 0 でも変えない。途中で分割数が変わると UV のちらつきが発生するため。
+        val gridSize = if (quality == RenderQuality.HIGH) 8 else 4
+        val worldX = pos.x.toFloat()
+        val worldZ = pos.z.toFloat()
+        val useWorldCoords = quality == RenderQuality.HIGH
+
+        state.wave = WaveParams(
+            animTime = animTime,
+            gridSize = gridSize,
+            useWorldCoords = useWorldCoords,
+            worldX = worldX,
+            worldZ = worldZ,
+            decayFactor = decayFactor,
+        )
+    }
+
+    override fun render(
+        state: ConnectedTankRenderState,
+        matrices: MatrixStack,
+        queue: OrderedRenderCommandQueue,
+        cameraState: CameraRenderState,
+    ) {
+        val sprite = state.sprite ?: return
+        if (state.localFillLevel <= 0f) return
+
+        matrices.push()
+        FluidRenderHelper.renderFluid(
+            queue,
+            matrices,
+            sprite,
+            state.argb,
+            state.localFillLevel,
+            state.wave,
+            state.neighbors,
+        )
+        matrices.pop()
+    }
+}
+*/
+//?} else {
 import net.minecraft.client.render.VertexConsumerProvider
 import net.minecraft.client.render.block.entity.BlockEntityRenderer
 import net.minecraft.client.render.block.entity.BlockEntityRendererFactory
@@ -100,3 +231,4 @@ class ConnectedTankBlockEntityRenderer(
         matrices.pop()
     }
 }
+//?}

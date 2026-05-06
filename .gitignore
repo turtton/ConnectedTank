@@ -48,3 +48,7 @@ hs_err_*.log
 replay_*.log
 *.hprof
 *.jfr
+
+# git-hooks.nix
+
+.pre-commit-config.yaml

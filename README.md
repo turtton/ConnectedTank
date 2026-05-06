@@ -48,7 +48,7 @@ Base capacity is 32 buckets by default (configurable). Each tank's capacity = ba
 
 ## Requirements
 
-- Minecraft 1.21.8
+- Minecraft 1.21.8 / 1.21.11
 - Fabric Loader >= 0.17.2
 - Fabric API
 - Fabric Language Kotlin
@@ -86,7 +86,7 @@ Base capacity is 32 buckets by default (configurable). Each tank's capacity = ba
 ./gradlew build
 ```
 
-The built jar will be in `build/libs/`.
+The built jars will be in `versions/*/build/libs/`.
 
 ## License
 
