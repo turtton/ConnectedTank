@@ -24,7 +24,10 @@ jobs:
         with:
           persist-credentials: false
           fetch-depth: 0
-          fetch-tags: true
+      - name: Fetch tag object
+        run: git fetch origin tag "$GITHUB_REF_NAME" --force
+        env:
+          GITHUB_REF_NAME: ${{ github.ref_name }}
       - name: Validate tag
         env:
           GITHUB_REF_NAME: ${{ github.ref_name }}
