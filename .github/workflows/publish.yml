@@ -24,6 +24,7 @@ jobs:
         with:
           persist-credentials: false
           fetch-depth: 0
+          fetch-tags: true
       - name: Validate tag
         env:
           GITHUB_REF_NAME: ${{ github.ref_name }}
