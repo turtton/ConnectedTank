@@ -104,7 +104,7 @@ jobs:
           MOD_VERSION: ${{ steps.version.outputs.mod_version }}
         run: |
           shopt -s nullglob
-          assets=(versions/*/build/libs/connectedtank-"${MOD_VERSION}"+mc*.jar)
+          assets=(versions/*/build/libs/connectedtank-"${MOD_VERSION}"+fabric-*.jar)
           if [ ${#assets[@]} -eq 0 ]; then
             echo "::error::No release assets found matching pattern"
             exit 1

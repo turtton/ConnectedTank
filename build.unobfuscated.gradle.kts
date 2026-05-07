@@ -11,7 +11,7 @@ plugins {
 
 val mcVersion = stonecutter.current.version
 
-version = providers.environmentVariable("MOD_VERSION").orElse("dev").get() + "+mc$mcVersion"
+version = providers.environmentVariable("MOD_VERSION").orElse("dev").get() + "+fabric-$mcVersion"
 group = project.property("maven_group") as String
 
 base {
