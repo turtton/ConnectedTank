@@ -1124,4 +1124,67 @@ object ConnectedTankGameTest {
         )
         context.succeed()
     }
+
+    @GameTest
+    fun destroyBlockDoesNotLeakStaleFluidData(context: GameTestHelper) {
+        val tankPos = BlockPos(0, 2, 0)
+        context.placeTank(tankPos)
+
+        val state = context.getFluidState()
+        val water = FluidVariant.of(Fluids.WATER)
+        val storage = state.getStorage(context.absolutePos(tankPos))!!
+        Transaction.openOuter().use { tx ->
+            storage.insert(water, FluidConstants.BUCKET * 5, tx)
+            tx.commit()
+        }
+
+        context.level.destroyBlock(context.absolutePos(tankPos), true)
+
+        val absPos = context.absolutePos(tankPos)
+        context.level.getEntities(EntityType.ITEM, AABB(absPos).inflate(1.0)) { true }
+            .forEach { it.discard() }
+
+        context.placeTank(tankPos)
+        context.level.destroyBlock(context.absolutePos(tankPos), true)
+
+        val droppedStack = context.findDroppedTankItem(tankPos)
+        context.assertTrue(droppedStack != null, Component.literal("Empty tank should drop"))
+
+        val fluidData = droppedStack!!.get(CTDataComponentTypes.TANK_FLUID)
+        context.assertTrue(
+            fluidData == null,
+            Component.literal("Empty tank should not have stale fluid data"),
+        )
+        context.succeed()
+    }
+
+    @GameTest
+    fun survivalMiningRetainsFluid(context: GameTestHelper) {
+        val tankPos = BlockPos(0, 2, 0)
+        context.placeTank(tankPos)
+
+        val state = context.getFluidState()
+        val water = FluidVariant.of(Fluids.WATER)
+        val storage = state.getStorage(context.absolutePos(tankPos))!!
+        Transaction.openOuter().use { tx ->
+            storage.insert(water, FluidConstants.BUCKET * 5, tx)
+            tx.commit()
+        }
+
+        val player = context.makeMockServerPlayerInLevel()
+        player.gameMode.changeGameModeForPlayer(GameType.SURVIVAL)
+        player.gameMode.destroyBlock(context.absolutePos(tankPos))
+
+        val droppedStack = context.findDroppedTankItem(tankPos)
+        context.assertTrue(droppedStack != null, Component.literal("Dropped tank item should exist"))
+
+        val fluidData = droppedStack!!.get(CTDataComponentTypes.TANK_FLUID)
+        context.assertTrue(fluidData != null, Component.literal("Survival mining should retain fluid data"))
+        context.assertTrue(fluidData!!.variant == water, Component.literal("Fluid variant should be water"))
+        context.assertTrue(
+            fluidData.amount == FluidConstants.BUCKET * 5,
+            Component.literal("Fluid amount should be 5 buckets but was ${fluidData.amount / FluidConstants.BUCKET}"),
+        )
+        context.succeed()
+    }
 }

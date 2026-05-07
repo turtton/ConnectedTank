@@ -124,10 +124,6 @@ class ConnectedTankBlock(val tier: TankTier, settings: Properties) :
             CTBlocks.syncGroupBlockEntities(world, neighborPos, persistentState)
         }
 
-        // クリエイティブモード等で getDroppedStacks が呼ばれないパスのクリーンアップ
-        val immutablePos = pos.immutable()
-        world.server?.execute { pendingDropData.remove(immutablePos) }
-
         super.affectNeighborsAfterRemoval(state, world, pos, moved)
     }
 
