@@ -3,8 +3,10 @@ package net.turtton.connectedtank
 import net.fabricmc.api.ClientModInitializer
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking
+//? if <26.1 {
 import net.fabricmc.fabric.api.client.rendering.v1.BlockRenderLayerMap
 import net.minecraft.client.renderer.chunk.ChunkSectionLayer
+//?}
 import net.minecraft.client.renderer.blockentity.BlockEntityRenderers
 import net.turtton.connectedtank.block.CTBlockEntityTypes
 import net.turtton.connectedtank.block.CTBlocks
@@ -21,7 +23,9 @@ object ConnectedTankClient : ClientModInitializer {
     override fun onInitializeClient() {
         CTClientConfig.load()
 
+        //? if <26.1 {
         CTBlocks.ALL_TANKS.forEach { BlockRenderLayerMap.putBlock(it, ChunkSectionLayer.CUTOUT) }
+        //?}
         //? if >=1.21.11 {
         /*BlockEntityRenderers.register<_, ConnectedTankRenderState>(
             CTBlockEntityTypes.CONNECTED_TANK,

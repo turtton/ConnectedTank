@@ -13,6 +13,9 @@ import net.turtton.connectedtank.MOD_ID
 import net.turtton.connectedtank.block.ConnectedTankBlock
 import net.turtton.connectedtank.block.TankFluidStorage
 import net.turtton.connectedtank.config.CTServerConfig
+//? if >=26.1 {
+/*import net.turtton.connectedtank.extension.ModIdentifier*/
+//?}
 
 class FluidStoragePersistentState(
     positionalStorageMap: Map<BlockPos, UUID> = mapOf(),
@@ -394,7 +397,11 @@ class FluidStoragePersistentState(
             ).apply(it, ::FluidStoragePersistentState)
         }
         val TYPE: SavedDataType<FluidStoragePersistentState> = SavedDataType(
+            //? if >=26.1 {
+            /*ModIdentifier("fluid_storage"),*/
+            //?} else {
             "${MOD_ID}_fluid_storage",
+            //?}
             ::FluidStoragePersistentState,
             CODEC,
             net.minecraft.util.datafix.DataFixTypes.LEVEL,

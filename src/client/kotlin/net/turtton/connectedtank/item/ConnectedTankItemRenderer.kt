@@ -11,7 +11,9 @@ import net.minecraft.client.renderer.special.SpecialModelRenderer
 import net.minecraft.client.renderer.special.SpecialModelRenderers
 import com.mojang.blaze3d.vertex.PoseStack
 import net.minecraft.world.item.BlockItem
+//? if <26.1 {
 import net.minecraft.world.item.ItemDisplayContext
+//?}
 import net.minecraft.world.item.ItemStack
 import net.minecraft.resources.Identifier
 import net.turtton.connectedtank.block.ConnectedTankBlock
@@ -23,10 +25,24 @@ import net.turtton.connectedtank.config.SyncedServerConfig
 import net.turtton.connectedtank.render.FluidRenderHelper
 import net.turtton.connectedtank.render.WaveParams
 import org.joml.Vector3fc
+//? if >=26.1 {
+import net.minecraft.client.Minecraft
+//?}
 
 class ConnectedTankItemRenderer : SpecialModelRenderer<ItemStack> {
     override fun extractArgument(stack: ItemStack): ItemStack? = stack
 
+    //? if >=26.1 {
+    override fun submit(
+        data: ItemStack?,
+        matrices: PoseStack,
+        queue: SubmitNodeCollector,
+        light: Int,
+        overlay: Int,
+        glint: Boolean,
+        seed: Int,
+    ) {
+    //?} else {
     override fun submit(
         data: ItemStack?,
         displayContext: ItemDisplayContext,
@@ -37,11 +53,17 @@ class ConnectedTankItemRenderer : SpecialModelRenderer<ItemStack> {
         glint: Boolean,
         seed: Int,
     ) {
+    //?}
         data ?: return
         val fluidData = data.get(CTDataComponentTypes.TANK_FLUID) ?: return
         if (fluidData.variant.isBlank || fluidData.amount <= 0L) return
 
+        //? if >=26.1 {
+        val fluidModels = Minecraft.getInstance().modelManager.fluidStateModelSet
+        val sprite = fluidModels.get(fluidData.variant.fluid.defaultFluidState()).stillMaterial().sprite()
+        //?} else {
         val sprite = FluidVariantRendering.getSprite(fluidData.variant) ?: return
+        //?}
         val color = FluidVariantRendering.getColor(fluidData.variant)
         val argb = (0xFF shl 24) or (color and 0x00FFFFFF)
 
@@ -63,7 +85,11 @@ class ConnectedTankItemRenderer : SpecialModelRenderer<ItemStack> {
                 argb,
                 fillLevel,
                 WaveParams(animTime = 0f, gridSize = gridSize),
+                //? if >=26.1 {
+                renderLayer = RenderTypes.entityTranslucentCullItemTarget(sprite.atlasLocation()),
+                //?} else {
                 renderLayer = RenderTypes.itemEntityTranslucentCull(sprite.atlasLocation()),
+                //?}
             )
         } finally {
             matrices.popPose()
@@ -73,6 +99,18 @@ class ConnectedTankItemRenderer : SpecialModelRenderer<ItemStack> {
     override fun getExtents(vertices: Consumer<Vector3fc>) {
     }
 
+    //? if >=26.1 {
+    class Unbaked : SpecialModelRenderer.Unbaked<ItemStack> {
+        override fun bake(context: SpecialModelRenderer.BakingContext): SpecialModelRenderer<ItemStack> =
+            ConnectedTankItemRenderer()
+
+        override fun type(): MapCodec<out SpecialModelRenderer.Unbaked<ItemStack>> = CODEC
+
+        companion object {
+            val CODEC: MapCodec<Unbaked> = MapCodec.unit(Unbaked())
+        }
+    }
+    //?} else {
     class Unbaked : SpecialModelRenderer.Unbaked {
         override fun bake(context: SpecialModelRenderer.BakingContext): SpecialModelRenderer<*> =
             ConnectedTankItemRenderer()
@@ -83,6 +121,7 @@ class ConnectedTankItemRenderer : SpecialModelRenderer<ItemStack> {
             val CODEC: MapCodec<Unbaked> = MapCodec.unit(Unbaked())
         }
     }
+    //?}
 
     companion object {
         val ID: Identifier = Identifier.fromNamespaceAndPath("connectedtank", "tank_fluid")
