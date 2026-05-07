@@ -52,3 +52,7 @@ replay_*.log
 # git-hooks.nix
 
 .pre-commit-config.yaml
+
+# stonecutter
+
+versions/

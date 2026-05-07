@@ -3,10 +3,10 @@ package net.turtton.connectedtank.network
 import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking
-import net.minecraft.network.RegistryByteBuf
-import net.minecraft.network.codec.PacketCodec
-import net.minecraft.network.codec.PacketCodecs
-import net.minecraft.network.packet.CustomPayload
+import net.minecraft.network.RegistryFriendlyByteBuf
+import net.minecraft.network.codec.StreamCodec
+import net.minecraft.network.codec.ByteBufCodecs
+import net.minecraft.network.protocol.common.custom.CustomPacketPayload
 import net.minecraft.server.MinecraftServer
 import net.turtton.connectedtank.config.CTServerConfig
 import net.turtton.connectedtank.extension.ModIdentifier
@@ -14,18 +14,18 @@ import net.turtton.connectedtank.extension.ModIdentifier
 data class ConfigSyncPayload(
     val tankBucketCapacity: Int,
     val tierMultipliers: Map<String, Int>,
-) : CustomPayload {
-    override fun getId(): CustomPayload.Id<ConfigSyncPayload> = ID
+) : CustomPacketPayload {
+    override fun type(): CustomPacketPayload.Type<ConfigSyncPayload> = ID
 
     companion object {
-        val ID: CustomPayload.Id<ConfigSyncPayload> = CustomPayload.Id(ModIdentifier("config_sync"))
+        val ID: CustomPacketPayload.Type<ConfigSyncPayload> = CustomPacketPayload.Type(ModIdentifier("config_sync"))
 
-        private val TIER_MULTIPLIER_CODEC: PacketCodec<RegistryByteBuf, Map<String, Int>> =
-            PacketCodec.ofStatic(
+        private val TIER_MULTIPLIER_CODEC: StreamCodec<RegistryFriendlyByteBuf, Map<String, Int>> =
+            StreamCodec.of(
                 { buf, map ->
                     buf.writeVarInt(map.size)
                     for ((key, value) in map) {
-                        buf.writeString(key)
+                        buf.writeUtf(key)
                         buf.writeVarInt(value)
                     }
                 },
@@ -33,19 +33,19 @@ data class ConfigSyncPayload(
                     val size = buf.readVarInt()
                     buildMap(size) {
                         repeat(size) {
-                            put(buf.readString(), buf.readVarInt())
+                            put(buf.readUtf(), buf.readVarInt())
                         }
                     }
                 },
             )
 
-        val CODEC: PacketCodec<RegistryByteBuf, ConfigSyncPayload> = PacketCodec.ofStatic(
+        val CODEC: StreamCodec<RegistryFriendlyByteBuf, ConfigSyncPayload> = StreamCodec.of(
             { buf, payload ->
-                PacketCodecs.VAR_INT.encode(buf, payload.tankBucketCapacity)
+                ByteBufCodecs.VAR_INT.encode(buf, payload.tankBucketCapacity)
                 TIER_MULTIPLIER_CODEC.encode(buf, payload.tierMultipliers)
             },
             { buf ->
-                val capacity = PacketCodecs.VAR_INT.decode(buf)
+                val capacity = ByteBufCodecs.VAR_INT.decode(buf)
                 val multipliers = TIER_MULTIPLIER_CODEC.decode(buf)
                 ConfigSyncPayload(capacity, multipliers)
             },
@@ -63,7 +63,7 @@ data class ConfigSyncPayload(
         fun broadcastToAll(server: MinecraftServer) {
             val config = CTServerConfig.instance
             val payload = ConfigSyncPayload(config.tankBucketCapacity, config.tierMultipliers)
-            for (player in server.playerManager.playerList) {
+            for (player in server.playerList.players) {
                 ServerPlayNetworking.send(player, payload)
             }
         }

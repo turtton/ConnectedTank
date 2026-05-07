@@ -1,9 +1,9 @@
 package net.turtton.connectedtank.mixin;
 
-import net.minecraft.item.BlockItem;
-import net.minecraft.item.ItemPlacementContext;
-import net.minecraft.util.ActionResult;
-import net.minecraft.util.math.BlockPos;
+import net.minecraft.core.BlockPos;
+import net.minecraft.world.InteractionResult;
+import net.minecraft.world.item.BlockItem;
+import net.minecraft.world.item.context.BlockPlaceContext;
 import net.turtton.connectedtank.block.ConnectedTankPlacementContext;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
@@ -19,14 +19,15 @@ public class BlockItemPlaceMixin {
      * getSide().getOpposite() でオフセットしてクリック先の既存ブロック座標を得る。
      */
     @Inject(
-            method = "place(Lnet/minecraft/item/ItemPlacementContext;)Lnet/minecraft/util/ActionResult;",
+            method =
+                    "place(Lnet/minecraft/world/item/context/BlockPlaceContext;)Lnet/minecraft/world/InteractionResult;",
             at = @At("HEAD"))
-    private void connectedtank$onPlaceHead(ItemPlacementContext context, CallbackInfoReturnable<ActionResult> cir) {
+    private void connectedtank$onPlaceHead(BlockPlaceContext context, CallbackInfoReturnable<InteractionResult> cir) {
         BlockPos hitPos;
-        if (context.canReplaceExisting()) {
-            hitPos = context.getBlockPos();
+        if (context.replacingClickedOnBlock()) {
+            hitPos = context.getClickedPos();
         } else {
-            hitPos = context.getBlockPos().offset(context.getSide().getOpposite());
+            hitPos = context.getClickedPos().relative(context.getClickedFace().getOpposite());
         }
         ConnectedTankPlacementContext.INSTANCE.setInteractedAt(hitPos);
     }
@@ -37,9 +38,10 @@ public class BlockItemPlaceMixin {
      * {@link ConnectedTankPlacementContext#consumeInteractedAt()} も参照。
      */
     @Inject(
-            method = "place(Lnet/minecraft/item/ItemPlacementContext;)Lnet/minecraft/util/ActionResult;",
+            method =
+                    "place(Lnet/minecraft/world/item/context/BlockPlaceContext;)Lnet/minecraft/world/InteractionResult;",
             at = @At("RETURN"))
-    private void connectedtank$onPlaceReturn(ItemPlacementContext context, CallbackInfoReturnable<ActionResult> cir) {
+    private void connectedtank$onPlaceReturn(BlockPlaceContext context, CallbackInfoReturnable<InteractionResult> cir) {
         ConnectedTankPlacementContext.INSTANCE.clear();
     }
 }

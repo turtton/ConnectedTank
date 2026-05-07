@@ -1,19 +1,20 @@
 package net.turtton.connectedtank.render
 
 import kotlin.math.sin
-import net.minecraft.client.render.LightmapTextureManager
-import net.minecraft.client.render.OverlayTexture
-import net.minecraft.client.render.RenderLayer
-import net.minecraft.client.render.VertexConsumer
+import net.minecraft.client.renderer.LightTexture
+import net.minecraft.client.renderer.texture.OverlayTexture
+import com.mojang.blaze3d.vertex.VertexConsumer
 //? if >=1.21.11 {
-/*import net.minecraft.client.render.RenderLayers
-import net.minecraft.client.render.command.OrderedRenderCommandQueue
+/*import net.minecraft.client.renderer.rendertype.RenderType
+import net.minecraft.client.renderer.rendertype.RenderTypes
+import net.minecraft.client.renderer.SubmitNodeCollector
 */
 //?} else {
-import net.minecraft.client.render.VertexConsumerProvider
+import net.minecraft.client.renderer.RenderType
+import net.minecraft.client.renderer.MultiBufferSource
 //?}
-import net.minecraft.client.texture.Sprite
-import net.minecraft.client.util.math.MatrixStack
+import net.minecraft.client.renderer.texture.TextureAtlasSprite
+import com.mojang.blaze3d.vertex.PoseStack
 
 data class WaveParams(
     val animTime: Float,
@@ -45,20 +46,20 @@ object FluidRenderHelper {
 
     fun renderFluid(
         //? if >=1.21.11 {
-        /*queue: OrderedRenderCommandQueue,*/
+        /*queue: SubmitNodeCollector,*/
         //?} else {
-        vertexConsumers: VertexConsumerProvider,
+        vertexConsumers: MultiBufferSource,
         //?}
-        matrices: MatrixStack,
-        sprite: Sprite,
+        matrices: PoseStack,
+        sprite: TextureAtlasSprite,
         argb: Int,
         fillLevel: Float,
         wave: WaveParams,
         neighbors: NeighborMask = NeighborMask(),
         //? if >=1.21.11 {
-        /*renderLayer: RenderLayer = RenderLayers.entityTranslucent(sprite.atlasId),*/
+        /*renderLayer: RenderType = RenderTypes.entityTranslucent(sprite.atlasLocation()),*/
         //?} else {
-        renderLayer: RenderLayer = RenderLayer.getEntityTranslucent(sprite.atlasId),
+        renderLayer: RenderType = RenderType.entityTranslucent(sprite.atlasLocation()),
         //?}
     ) {
         if (fillLevel <= 0f || wave.gridSize <= 0) return
@@ -72,7 +73,7 @@ object FluidRenderHelper {
         val fluidTop = minY + (1f - INSET - minY) * fillLevel
 
         //? if >=1.21.11 {
-        /*queue.submitCustom(matrices, renderLayer) { entry, consumer ->
+        /*queue.submitCustomGeometry(matrices, renderLayer) { entry, consumer ->
             renderAnimatedFluid(
                 consumer,
                 entry,
@@ -90,7 +91,7 @@ object FluidRenderHelper {
         }*/
         //?} else {
         val consumer = vertexConsumers.getBuffer(renderLayer)
-        val entry = matrices.peek()
+        val entry = matrices.last()
 
         renderAnimatedFluid(
             consumer,
@@ -112,8 +113,8 @@ object FluidRenderHelper {
     @Suppress("LongParameterList")
     private fun renderAnimatedFluid(
         consumer: VertexConsumer,
-        entry: MatrixStack.Entry,
-        sprite: Sprite,
+        entry: PoseStack.Pose,
+        sprite: TextureAtlasSprite,
         argb: Int,
         fluidTop: Float,
         wave: WaveParams,
@@ -124,12 +125,12 @@ object FluidRenderHelper {
         maxZ: Float,
         neighbors: NeighborMask,
     ) {
-        val fullLight = LightmapTextureManager.MAX_LIGHT_COORDINATE
-        val ov = OverlayTexture.DEFAULT_UV
-        val u0 = sprite.minU
-        val u1 = sprite.maxU
-        val v0 = sprite.minV
-        val v1 = sprite.maxV
+        val fullLight = LightTexture.FULL_BRIGHT
+        val ov = OverlayTexture.NO_OVERLAY
+        val u0 = sprite.u0
+        val u1 = sprite.u1
+        val v0 = sprite.v0
+        val v1 = sprite.v1
         val maxY = 1f - INSET
 
         val gridSize = wave.gridSize
@@ -402,7 +403,7 @@ object FluidRenderHelper {
 
     @Suppress("LongParameterList")
     private fun VertexConsumer.quadUV(
-        entry: MatrixStack.Entry,
+        entry: PoseStack.Pose,
         argb: Int,
         ov: Int,
         fullLight: Int,
@@ -430,13 +431,13 @@ object FluidRenderHelper {
         ny: Float,
         nz: Float,
     ) {
-        vertex(entry, x1, y1, z1).color(argb).texture(su0, sv0).overlay(ov).light(fullLight)
-            .normal(entry, nx, ny, nz)
-        vertex(entry, x2, y2, z2).color(argb).texture(su1, sv1).overlay(ov).light(fullLight)
-            .normal(entry, nx, ny, nz)
-        vertex(entry, x3, y3, z3).color(argb).texture(su2, sv2).overlay(ov).light(fullLight)
-            .normal(entry, nx, ny, nz)
-        vertex(entry, x4, y4, z4).color(argb).texture(su3, sv3).overlay(ov).light(fullLight)
-            .normal(entry, nx, ny, nz)
+        addVertex(entry, x1, y1, z1).setColor(argb).setUv(su0, sv0).setOverlay(ov).setLight(fullLight)
+            .setNormal(entry, nx, ny, nz)
+        addVertex(entry, x2, y2, z2).setColor(argb).setUv(su1, sv1).setOverlay(ov).setLight(fullLight)
+            .setNormal(entry, nx, ny, nz)
+        addVertex(entry, x3, y3, z3).setColor(argb).setUv(su2, sv2).setOverlay(ov).setLight(fullLight)
+            .setNormal(entry, nx, ny, nz)
+        addVertex(entry, x4, y4, z4).setColor(argb).setUv(su3, sv3).setOverlay(ov).setLight(fullLight)
+            .setNormal(entry, nx, ny, nz)
     }
 }

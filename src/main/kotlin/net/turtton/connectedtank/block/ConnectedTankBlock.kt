@@ -5,44 +5,44 @@ import net.fabricmc.fabric.api.transfer.v1.fluid.FluidConstants
 import net.fabricmc.fabric.api.transfer.v1.fluid.FluidStorageUtil
 import net.fabricmc.fabric.api.transfer.v1.fluid.FluidVariantAttributes
 import net.fabricmc.loader.api.FabricLoader
-import net.minecraft.block.Block
-import net.minecraft.block.BlockEntityProvider
-import net.minecraft.block.BlockState
-import net.minecraft.block.entity.BlockEntity
-import net.minecraft.entity.LivingEntity
-import net.minecraft.entity.player.PlayerEntity
-import net.minecraft.item.ItemPlacementContext
-import net.minecraft.item.ItemStack
-import net.minecraft.loot.context.LootContextParameters
-import net.minecraft.loot.context.LootWorldContext
-import net.minecraft.server.world.ServerWorld
-import net.minecraft.state.StateManager
-import net.minecraft.state.property.BooleanProperty
-import net.minecraft.text.Text
-import net.minecraft.util.ActionResult
-import net.minecraft.util.Hand
-import net.minecraft.util.hit.BlockHitResult
-import net.minecraft.util.math.BlockPos
-import net.minecraft.util.math.Direction
-import net.minecraft.util.math.random.Random
-import net.minecraft.world.BlockView
-import net.minecraft.world.World
-import net.minecraft.world.WorldView
-import net.minecraft.world.tick.ScheduledTickView
+import net.minecraft.world.level.block.Block
+import net.minecraft.world.level.block.EntityBlock
+import net.minecraft.world.level.block.state.BlockState
+import net.minecraft.world.level.block.entity.BlockEntity
+import net.minecraft.world.entity.LivingEntity
+import net.minecraft.world.entity.player.Player
+import net.minecraft.world.item.context.BlockPlaceContext
+import net.minecraft.world.item.ItemStack
+import net.minecraft.world.level.storage.loot.parameters.LootContextParams
+import net.minecraft.world.level.storage.loot.LootParams
+import net.minecraft.server.level.ServerLevel
+import net.minecraft.world.level.block.state.StateDefinition
+import net.minecraft.world.level.block.state.properties.BooleanProperty
+import net.minecraft.network.chat.Component
+import net.minecraft.world.InteractionResult
+import net.minecraft.world.InteractionHand
+import net.minecraft.world.phys.BlockHitResult
+import net.minecraft.core.BlockPos
+import net.minecraft.core.Direction
+import net.minecraft.util.RandomSource
+import net.minecraft.world.level.BlockGetter
+import net.minecraft.world.level.Level
+import net.minecraft.world.level.LevelReader
+import net.minecraft.world.level.ScheduledTickAccess
 import net.turtton.connectedtank.component.CTDataComponentTypes
 import net.turtton.connectedtank.config.CTServerConfig
 import net.turtton.connectedtank.world.FluidStoragePersistentState
 
-class ConnectedTankBlock(val tier: TankTier, settings: Settings) :
+class ConnectedTankBlock(val tier: TankTier, settings: Properties) :
     Block(settings),
-    BlockEntityProvider {
+    EntityBlock {
     companion object {
-        val CONNECTED_NORTH: BooleanProperty = BooleanProperty.of("connected_north")
-        val CONNECTED_SOUTH: BooleanProperty = BooleanProperty.of("connected_south")
-        val CONNECTED_EAST: BooleanProperty = BooleanProperty.of("connected_east")
-        val CONNECTED_WEST: BooleanProperty = BooleanProperty.of("connected_west")
-        val CONNECTED_UP: BooleanProperty = BooleanProperty.of("connected_up")
-        val CONNECTED_DOWN: BooleanProperty = BooleanProperty.of("connected_down")
+        val CONNECTED_NORTH: BooleanProperty = BooleanProperty.create("connected_north")
+        val CONNECTED_SOUTH: BooleanProperty = BooleanProperty.create("connected_south")
+        val CONNECTED_EAST: BooleanProperty = BooleanProperty.create("connected_east")
+        val CONNECTED_WEST: BooleanProperty = BooleanProperty.create("connected_west")
+        val CONNECTED_UP: BooleanProperty = BooleanProperty.create("connected_up")
+        val CONNECTED_DOWN: BooleanProperty = BooleanProperty.create("connected_down")
 
         val DIRECTION_PROPERTIES: Map<Direction, BooleanProperty> = mapOf(
             Direction.NORTH to CONNECTED_NORTH,
@@ -55,59 +55,61 @@ class ConnectedTankBlock(val tier: TankTier, settings: Settings) :
     }
 
     init {
-        defaultState = stateManager.defaultState
-            .with(CONNECTED_NORTH, false)
-            .with(CONNECTED_SOUTH, false)
-            .with(CONNECTED_EAST, false)
-            .with(CONNECTED_WEST, false)
-            .with(CONNECTED_UP, false)
-            .with(CONNECTED_DOWN, false)
+        registerDefaultState(
+            stateDefinition.any()
+                .setValue(CONNECTED_NORTH, false)
+                .setValue(CONNECTED_SOUTH, false)
+                .setValue(CONNECTED_EAST, false)
+                .setValue(CONNECTED_WEST, false)
+                .setValue(CONNECTED_UP, false)
+                .setValue(CONNECTED_DOWN, false),
+        )
     }
 
     private val pendingDropData = ConcurrentHashMap<BlockPos, TankFluidStorage.ExistingData>()
 
-    override fun appendProperties(builder: StateManager.Builder<Block, BlockState>) {
+    override fun createBlockStateDefinition(builder: StateDefinition.Builder<Block, BlockState>) {
         builder.add(CONNECTED_NORTH, CONNECTED_SOUTH, CONNECTED_EAST, CONNECTED_WEST, CONNECTED_UP, CONNECTED_DOWN)
     }
 
-    override fun getPlacementState(ctx: ItemPlacementContext): BlockState {
+    override fun getStateForPlacement(ctx: BlockPlaceContext): BlockState {
         // 設置直後は BlockEntity がまだ存在しないため、全方向 false で設置する。
         // 正しい接続状態は onPlaced → syncGroupBlockEntities で確定する。
-        return defaultState
+        return defaultBlockState()
     }
 
-    override fun getStateForNeighborUpdate(
+    override fun updateShape(
         state: BlockState,
-        world: WorldView,
-        tickView: ScheduledTickView,
+        world: LevelReader,
+        tickView: ScheduledTickAccess,
         pos: BlockPos,
         direction: Direction,
         neighborPos: BlockPos,
         neighborState: BlockState,
-        random: Random,
+        random: RandomSource,
     ): BlockState {
         val property = DIRECTION_PROPERTIES[direction] ?: return state
         if (!CTBlocks.isConnectedTank(neighborState.block)) {
-            return state.with(property, false)
+            return state.setValue(property, false)
         }
         return state
     }
 
-    override fun createBlockEntity(pos: BlockPos, state: BlockState): BlockEntity = ConnectedTankBlockEntity(pos, state)
+    override fun newBlockEntity(pos: BlockPos, state: BlockState): BlockEntity = ConnectedTankBlockEntity(pos, state)
 
-    override fun isSideInvisible(state: BlockState, stateFrom: BlockState, direction: Direction): Boolean {
-        val property = DIRECTION_PROPERTIES[direction] ?: return super.isSideInvisible(state, stateFrom, direction)
-        return state.get(property) || super.isSideInvisible(state, stateFrom, direction)
+    override fun skipRendering(state: BlockState, stateFrom: BlockState, direction: Direction): Boolean {
+        val property = DIRECTION_PROPERTIES[direction] ?: return super.skipRendering(state, stateFrom, direction)
+        return state.getValue(property) || super.skipRendering(state, stateFrom, direction)
     }
 
-    override fun isTransparent(state: BlockState): Boolean = true
+    override fun propagatesSkylightDown(state: BlockState): Boolean = true
 
-    override fun getAmbientOcclusionLightLevel(state: BlockState, world: BlockView, pos: BlockPos): Float = 1.0F
+    override fun getShadeBrightness(state: BlockState, world: BlockGetter, pos: BlockPos): Float = 1.0F
 
-    override fun onStateReplaced(state: BlockState, world: ServerWorld, pos: BlockPos, moved: Boolean) {
-        val persistentState = world.persistentStateManager.getOrCreate(FluidStoragePersistentState.TYPE)
+    override fun affectNeighborsAfterRemoval(state: BlockState, world: ServerLevel, pos: BlockPos, moved: Boolean) {
+        val persistentState = world.dataStorage.computeIfAbsent(FluidStoragePersistentState.TYPE)
         val neighborPositions = FluidStoragePersistentState.ADJACENT_OFFSETS
-            .map { pos.add(it) }
+            .map { pos.offset(it) }
             .filter { CTBlocks.isConnectedTank(world.getBlockState(it).block) }
 
         if (!pendingDropData.containsKey(pos)) {
@@ -123,31 +125,31 @@ class ConnectedTankBlock(val tier: TankTier, settings: Settings) :
         }
 
         // クリエイティブモード等で getDroppedStacks が呼ばれないパスのクリーンアップ
-        val immutablePos = pos.toImmutable()
+        val immutablePos = pos.immutable()
         world.server?.execute { pendingDropData.remove(immutablePos) }
 
-        super.onStateReplaced(state, world, pos, moved)
+        super.affectNeighborsAfterRemoval(state, world, pos, moved)
     }
 
-    public override fun getPickStack(world: WorldView, pos: BlockPos, state: BlockState, includeData: Boolean): ItemStack {
-        val stack = super.getPickStack(world, pos, state, includeData)
-        if (!includeData || world !is ServerWorld) return stack
-        val persistentState = world.persistentStateManager.getOrCreate(FluidStoragePersistentState.TYPE)
+    public override fun getCloneItemStack(world: LevelReader, pos: BlockPos, state: BlockState, includeData: Boolean): ItemStack {
+        val stack = super.getCloneItemStack(world, pos, state, includeData)
+        if (!includeData || world !is ServerLevel) return stack
+        val persistentState = world.dataStorage.computeIfAbsent(FluidStoragePersistentState.TYPE)
         val fluidData = computeFluidData(persistentState, pos, world) ?: return stack
         stack.set(CTDataComponentTypes.TANK_FLUID, fluidData)
         return stack
     }
 
-    override fun getDroppedStacks(state: BlockState, builder: LootWorldContext.Builder): List<ItemStack> {
+    override fun getDrops(state: BlockState, builder: LootParams.Builder): List<ItemStack> {
         val stack = ItemStack(this)
-        val origin = builder.get(LootContextParameters.ORIGIN)
-        val pos = BlockPos.ofFloored(origin)
+        val origin = builder.getParameter(LootContextParams.ORIGIN)
+        val pos = BlockPos.containing(origin)
 
         val fluidData = pendingDropData.remove(pos)
             ?: run {
                 // Explosion パス: ストレージがまだ存在する
-                val world = builder.world
-                val persistentState = world.persistentStateManager.getOrCreate(FluidStoragePersistentState.TYPE)
+                val world = builder.level
+                val persistentState = world.dataStorage.computeIfAbsent(FluidStoragePersistentState.TYPE)
                 computeFluidData(persistentState, pos, world)?.also {
                     pendingDropData[pos] = it
                 }
@@ -162,7 +164,7 @@ class ConnectedTankBlock(val tier: TankTier, settings: Settings) :
     private fun computeFluidData(
         persistentState: FluidStoragePersistentState,
         pos: BlockPos,
-        world: ServerWorld,
+        world: ServerLevel,
     ): TankFluidStorage.ExistingData? {
         val tankStorage = persistentState.getStorage(pos)
         if (tankStorage == null || tankStorage.isResourceBlank) return null
@@ -171,10 +173,10 @@ class ConnectedTankBlock(val tier: TankTier, settings: Settings) :
         return TankFluidStorage.ExistingData(tankStorage.variant, share)
     }
 
-    override fun onPlaced(world: World?, pos: BlockPos?, state: BlockState?, placer: LivingEntity?, itemStack: ItemStack?) {
-        if (world is ServerWorld && pos != null) {
-            val persistentState = world.persistentStateManager.getOrCreate(FluidStoragePersistentState.TYPE)
-            val fluidData = itemStack?.get(CTDataComponentTypes.TANK_FLUID)
+    override fun setPlacedBy(world: Level, pos: BlockPos, state: BlockState, placer: LivingEntity?, itemStack: ItemStack) {
+        if (world is ServerLevel) {
+            val persistentState = world.dataStorage.computeIfAbsent(FluidStoragePersistentState.TYPE)
+            val fluidData = itemStack.get(CTDataComponentTypes.TANK_FLUID)
             val block = world.getBlockState(pos).block as? ConnectedTankBlock
             val capacity = block?.tier?.bucketCapacity ?: CTServerConfig.instance.tankBucketCapacity
             val tankStorage = TankFluidStorage(capacity, fluidData)
@@ -186,35 +188,35 @@ class ConnectedTankBlock(val tier: TankTier, settings: Settings) :
         }
     }
 
-    override fun onUse(state: BlockState, world: World, pos: BlockPos, player: PlayerEntity, hit: BlockHitResult): ActionResult {
-        if (!FabricLoader.getInstance().isDevelopmentEnvironment) return ActionResult.PASS
-        if (world !is ServerWorld) return ActionResult.SUCCESS
+    override fun useWithoutItem(state: BlockState, world: Level, pos: BlockPos, player: Player, hit: BlockHitResult): InteractionResult {
+        if (!FabricLoader.getInstance().isDevelopmentEnvironment) return InteractionResult.PASS
+        if (world !is ServerLevel) return InteractionResult.SUCCESS
 
-        val storage = world.persistentStateManager.getOrCreate(FluidStoragePersistentState.TYPE)
+        val storage = world.dataStorage.computeIfAbsent(FluidStoragePersistentState.TYPE)
         val tankStorage = storage.getStorage(pos)
         if (tankStorage == null) {
-            player.sendMessage(Text.literal("No storage"), true)
-            return ActionResult.SUCCESS
+            player.displayClientMessage(Component.literal("No storage"), true)
+            return InteractionResult.SUCCESS
         }
 
         val fluidName = if (tankStorage.isResourceBlank) "Empty" else FluidVariantAttributes.getName(tankStorage.variant).string
         val buckets = tankStorage.amount.toDouble() / FluidConstants.BUCKET
         val capacity = tankStorage.bucketCapacity
-        player.sendMessage(Text.literal("$fluidName: %.2f / %d buckets".format(buckets, capacity)), true)
-        return ActionResult.SUCCESS
+        player.displayClientMessage(Component.literal("$fluidName: %.2f / %d buckets".format(buckets, capacity)), true)
+        return InteractionResult.SUCCESS
     }
 
-    override fun onUseWithItem(stack: ItemStack, state: BlockState, world: World, pos: BlockPos, player: PlayerEntity, hand: Hand, hit: BlockHitResult): ActionResult {
-        if (world !is ServerWorld) return ActionResult.SUCCESS
+    override fun useItemOn(stack: ItemStack, state: BlockState, world: Level, pos: BlockPos, player: Player, hand: InteractionHand, hit: BlockHitResult): InteractionResult {
+        if (world !is ServerLevel) return InteractionResult.SUCCESS
 
-        val persistentState = world.persistentStateManager.getOrCreate(FluidStoragePersistentState.TYPE)
-        val tankStorage = persistentState.getStorage(pos) ?: return ActionResult.PASS_TO_DEFAULT_BLOCK_ACTION
+        val persistentState = world.dataStorage.computeIfAbsent(FluidStoragePersistentState.TYPE)
+        val tankStorage = persistentState.getStorage(pos) ?: return InteractionResult.TRY_WITH_EMPTY_HAND
         val result = FluidStorageUtil.interactWithFluidStorage(tankStorage, player, hand)
         return if (result) {
             CTBlocks.syncGroupBlockEntities(world, pos, persistentState)
-            ActionResult.SUCCESS
+            InteractionResult.SUCCESS
         } else {
-            ActionResult.PASS_TO_DEFAULT_BLOCK_ACTION
+            InteractionResult.TRY_WITH_EMPTY_HAND
         }
     }
 }

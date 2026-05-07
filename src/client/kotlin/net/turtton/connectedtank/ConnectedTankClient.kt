@@ -4,8 +4,8 @@ import net.fabricmc.api.ClientModInitializer
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking
 import net.fabricmc.fabric.api.client.rendering.v1.BlockRenderLayerMap
-import net.minecraft.client.render.BlockRenderLayer
-import net.minecraft.client.render.block.entity.BlockEntityRendererFactories
+import net.minecraft.client.renderer.chunk.ChunkSectionLayer
+import net.minecraft.client.renderer.blockentity.BlockEntityRenderers
 import net.turtton.connectedtank.block.CTBlockEntityTypes
 import net.turtton.connectedtank.block.CTBlocks
 import net.turtton.connectedtank.block.ConnectedTankBlockEntityRenderer
@@ -21,13 +21,13 @@ object ConnectedTankClient : ClientModInitializer {
     override fun onInitializeClient() {
         CTClientConfig.load()
 
-        CTBlocks.ALL_TANKS.forEach { BlockRenderLayerMap.putBlock(it, BlockRenderLayer.CUTOUT) }
+        CTBlocks.ALL_TANKS.forEach { BlockRenderLayerMap.putBlock(it, ChunkSectionLayer.CUTOUT) }
         //? if >=1.21.11 {
-        /*BlockEntityRendererFactories.register<_, ConnectedTankRenderState>(
+        /*BlockEntityRenderers.register<_, ConnectedTankRenderState>(
             CTBlockEntityTypes.CONNECTED_TANK,
         ) { context -> ConnectedTankBlockEntityRenderer(context) }*/
         //?} else {
-        BlockEntityRendererFactories.register(
+        BlockEntityRenderers.register(
             CTBlockEntityTypes.CONNECTED_TANK,
         ) { context -> ConnectedTankBlockEntityRenderer(context) }
         //?}

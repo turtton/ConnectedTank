@@ -1,6 +1,6 @@
 package net.turtton.connectedtank.block
 
-import net.minecraft.util.math.BlockPos
+import net.minecraft.core.BlockPos
 
 object ConnectedTankPlacementContext {
     private val interactedAt = ThreadLocal<BlockPos?>()

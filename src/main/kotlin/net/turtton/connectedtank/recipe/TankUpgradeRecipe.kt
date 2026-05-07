@@ -1,26 +1,26 @@
 package net.turtton.connectedtank.recipe
 
 import com.mojang.serialization.MapCodec
-import net.minecraft.item.ItemStack
-import net.minecraft.network.RegistryByteBuf
-import net.minecraft.network.codec.PacketCodec
-import net.minecraft.recipe.CraftingRecipe
-import net.minecraft.recipe.IngredientPlacement
-import net.minecraft.recipe.RecipeSerializer
-import net.minecraft.recipe.ShapedRecipe
-import net.minecraft.recipe.book.CraftingRecipeCategory
-import net.minecraft.recipe.display.RecipeDisplay
-import net.minecraft.recipe.input.CraftingRecipeInput
-import net.minecraft.registry.RegistryWrapper
-import net.minecraft.world.World
+import net.minecraft.world.item.ItemStack
+import net.minecraft.network.RegistryFriendlyByteBuf
+import net.minecraft.network.codec.StreamCodec
+import net.minecraft.world.item.crafting.CraftingRecipe
+import net.minecraft.world.item.crafting.PlacementInfo
+import net.minecraft.world.item.crafting.RecipeSerializer
+import net.minecraft.world.item.crafting.ShapedRecipe
+import net.minecraft.world.item.crafting.CraftingBookCategory
+import net.minecraft.world.item.crafting.display.RecipeDisplay
+import net.minecraft.world.item.crafting.CraftingInput
+import net.minecraft.core.HolderLookup
+import net.minecraft.world.level.Level
 import net.turtton.connectedtank.component.CTDataComponentTypes
 
 class TankUpgradeRecipe(private val shaped: ShapedRecipe) : CraftingRecipe {
-    override fun matches(input: CraftingRecipeInput, world: World): Boolean = shaped.matches(input, world)
+    override fun matches(input: CraftingInput, world: Level): Boolean = shaped.matches(input, world)
 
-    override fun craft(input: CraftingRecipeInput, lookup: RegistryWrapper.WrapperLookup): ItemStack {
-        val result = shaped.craft(input, lookup)
-        for (stack in input.stacks) {
+    override fun assemble(input: CraftingInput, lookup: HolderLookup.Provider): ItemStack {
+        val result = shaped.assemble(input, lookup)
+        for (stack in input.items()) {
             val fluidData = stack.get(CTDataComponentTypes.TANK_FLUID)
             if (fluidData != null) {
                 result.set(CTDataComponentTypes.TANK_FLUID, fluidData)
@@ -32,20 +32,20 @@ class TankUpgradeRecipe(private val shaped: ShapedRecipe) : CraftingRecipe {
 
     override fun getSerializer(): RecipeSerializer<out CraftingRecipe> = CTRecipeSerializers.TANK_UPGRADE
 
-    override fun getGroup(): String = shaped.group
+    override fun group(): String = shaped.group()
 
-    override fun getCategory(): CraftingRecipeCategory = shaped.category
+    override fun category(): CraftingBookCategory = shaped.category()
 
-    override fun getIngredientPlacement(): IngredientPlacement = shaped.ingredientPlacement
+    override fun placementInfo(): PlacementInfo = shaped.placementInfo()
 
     override fun showNotification(): Boolean = shaped.showNotification()
 
-    override fun getDisplays(): List<RecipeDisplay> = shaped.displays
+    override fun display(): List<RecipeDisplay> = shaped.display()
 
     class Serializer : RecipeSerializer<TankUpgradeRecipe> {
         override fun codec(): MapCodec<TankUpgradeRecipe> = ShapedRecipe.Serializer.CODEC.xmap(::TankUpgradeRecipe) { it.shaped }
 
         @Deprecated("Recipe is no longer synced to clients")
-        override fun packetCodec(): PacketCodec<RegistryByteBuf, TankUpgradeRecipe> = ShapedRecipe.Serializer.PACKET_CODEC.xmap(::TankUpgradeRecipe) { it.shaped }
+        override fun streamCodec(): StreamCodec<RegistryFriendlyByteBuf, TankUpgradeRecipe> = ShapedRecipe.Serializer.STREAM_CODEC.map(::TankUpgradeRecipe) { it.shaped }
     }
 }
