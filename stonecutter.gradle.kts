@@ -25,6 +25,6 @@ spotless {
     }
     java {
         target("src/**/*.java")
-        palantirJavaFormat()
+        palantirJavaFormat("2.90.0")
     }
 }

@@ -52,7 +52,11 @@ data class ConfigSyncPayload(
         )
 
         fun registerServer() {
+            //? if >=26.1 {
+            /*PayloadTypeRegistry.clientboundPlay().register(ID, CODEC)*/
+            //?} else {
             PayloadTypeRegistry.playS2C().register(ID, CODEC)
+            //?}
             ServerPlayConnectionEvents.JOIN.register { handler, _, _ ->
                 val config = CTServerConfig.instance
                 val payload = ConfigSyncPayload(config.tankBucketCapacity, config.tierMultipliers)

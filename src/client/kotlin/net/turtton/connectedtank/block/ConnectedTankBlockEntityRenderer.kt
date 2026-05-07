@@ -9,7 +9,12 @@ import net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider
 import net.minecraft.client.renderer.blockentity.state.BlockEntityRenderState
 import net.minecraft.client.renderer.feature.ModelFeatureRenderer
 import net.minecraft.client.renderer.SubmitNodeCollector
+//? if >=26.1 {
+import net.minecraft.client.renderer.state.level.CameraRenderState
+import net.minecraft.client.Minecraft
+//?} else {
 import net.minecraft.client.renderer.state.CameraRenderState
+//?}
 import net.minecraft.client.renderer.texture.TextureAtlasSprite
 import com.mojang.blaze3d.vertex.PoseStack
 import net.minecraft.core.BlockPos
@@ -52,7 +57,12 @@ class ConnectedTankBlockEntityRenderer(
             return
         }
 
+        //? if >=26.1 {
+        val fluidModels = Minecraft.getInstance().modelManager.fluidStateModelSet
+        state.sprite = fluidModels.get(entity.fluidVariant.fluid.defaultFluidState()).stillMaterial().sprite()
+        //?} else {
         state.sprite = FluidVariantRendering.getSprite(entity.fluidVariant)
+        //?}
         val color = FluidVariantRendering.getColor(entity.fluidVariant)
         state.argb = (0xFF shl 24) or (color and 0x00FFFFFF)
 

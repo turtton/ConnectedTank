@@ -4,6 +4,8 @@ import net.fabricmc.fabric.api.gametest.v1.GameTest
 import net.fabricmc.fabric.api.transfer.v1.fluid.FluidConstants
 import net.fabricmc.fabric.api.transfer.v1.fluid.FluidVariant
 import net.fabricmc.fabric.api.transfer.v1.transaction.Transaction
+import net.minecraft.world.entity.EntityType
+import net.minecraft.world.entity.item.ItemEntity
 import net.minecraft.world.level.block.Blocks
 import net.minecraft.world.level.material.Fluids
 import net.minecraft.world.item.ItemStack
@@ -12,6 +14,7 @@ import net.minecraft.network.chat.Component
 import net.minecraft.core.BlockPos
 import net.minecraft.core.Direction
 import net.minecraft.world.level.GameType
+import net.minecraft.world.phys.AABB
 import net.turtton.connectedtank.block.CTBlocks
 import net.turtton.connectedtank.block.ConnectedTankBlock
 import net.turtton.connectedtank.block.TankFluidStorage
@@ -984,6 +987,140 @@ object ConnectedTankGameTest {
         context.assertTrue(
             sR!!.bucketCapacity == baseCap,
             Component.literal("Right capacity should be $baseCap but was ${sR.bucketCapacity}"),
+        )
+        context.succeed()
+    }
+
+    // === ブロック破壊時の液体保持テスト ===
+
+    private fun GameTestHelper.findDroppedTankItem(relativePos: BlockPos): ItemStack? {
+        val absPos = absolutePos(relativePos)
+        val entities = level.getEntities(EntityType.ITEM, AABB(absPos).inflate(1.0)) { it.isAlive }
+        for (entity in entities) {
+            val itemEntity = entity as ItemEntity
+            val stack = itemEntity.item
+            if (stack.item in CTItems.ALL_TANK_ITEMS) return stack
+        }
+        return null
+    }
+
+    @GameTest
+    fun breakSingleTankRetainsFluidInDrop(context: GameTestHelper) {
+        val tankPos = BlockPos(0, 2, 0)
+        context.placeTank(tankPos)
+
+        val state = context.getFluidState()
+        val water = FluidVariant.of(Fluids.WATER)
+        val storage = state.getStorage(context.absolutePos(tankPos))!!
+        Transaction.openOuter().use { tx ->
+            storage.insert(water, FluidConstants.BUCKET * 5, tx)
+            tx.commit()
+        }
+
+        // ブロック破壊 (ドロップ生成あり)
+        context.level.destroyBlock(context.absolutePos(tankPos), true)
+
+        // ドロップされたアイテムを検索
+        val droppedStack = context.findDroppedTankItem(tankPos)
+        context.assertTrue(droppedStack != null, Component.literal("Dropped tank item should exist"))
+
+        val fluidData = droppedStack!!.get(CTDataComponentTypes.TANK_FLUID)
+        context.assertTrue(fluidData != null, Component.literal("Dropped item should have fluid data"))
+        context.assertTrue(fluidData!!.variant == water, Component.literal("Fluid variant should be water"))
+        context.assertTrue(
+            fluidData.amount == FluidConstants.BUCKET * 5,
+            Component.literal("Fluid amount should be 5 buckets but was ${fluidData.amount / FluidConstants.BUCKET}"),
+        )
+        context.succeed()
+    }
+
+    @GameTest
+    fun breakTankAndReplaceRestoresFluid(context: GameTestHelper) {
+        val tankPos = BlockPos(0, 2, 0)
+        context.placeTank(tankPos)
+
+        val state = context.getFluidState()
+        val water = FluidVariant.of(Fluids.WATER)
+        val storage = state.getStorage(context.absolutePos(tankPos))!!
+        Transaction.openOuter().use { tx ->
+            storage.insert(water, FluidConstants.BUCKET * 7, tx)
+            tx.commit()
+        }
+
+        // ブロック破壊
+        context.level.destroyBlock(context.absolutePos(tankPos), true)
+
+        // ストレージが削除されたことを確認
+        val removedStorage = state.getStorage(context.absolutePos(tankPos))
+        context.assertTrue(removedStorage == null, Component.literal("Storage should be removed after breaking"))
+
+        // ドロップされたアイテムから液体データを取得
+        val droppedStack = context.findDroppedTankItem(tankPos)
+        context.assertTrue(droppedStack != null, Component.literal("Dropped tank item should exist"))
+        val fluidData = droppedStack!!.get(CTDataComponentTypes.TANK_FLUID)
+        context.assertTrue(fluidData != null, Component.literal("Dropped item should have fluid data"))
+
+        // 液体入りタンクを再設置 (setPlacedBy をシミュレート)
+        val block = CTBlocks.CONNECTED_TANK as ConnectedTankBlock
+        context.setBlock(tankPos, block.defaultBlockState())
+        val capacity = block.tier.bucketCapacity
+        val tankStorage = TankFluidStorage(capacity, fluidData)
+        state.addStorage(context.absolutePos(tankPos), tankStorage)
+
+        // 液体が復元されたことを確認
+        val restored = state.getStorage(context.absolutePos(tankPos))
+        context.assertTrue(restored != null, Component.literal("Restored storage should exist"))
+        context.assertTrue(restored!!.variant == water, Component.literal("Restored variant should be water"))
+        context.assertTrue(
+            restored.amount == FluidConstants.BUCKET * 7,
+            Component.literal("Restored amount should be 7 buckets but was ${restored.amount / FluidConstants.BUCKET}"),
+        )
+        context.succeed()
+    }
+
+    @GameTest
+    fun breakMiddleTankRetainsShareInDrop(context: GameTestHelper) {
+        // 3 連結タンク (各 32 バケツ容量) に 30 バケツ注入 → 中央を破壊 → 中央のシェア (10 バケツ) がドロップ
+        val posL = BlockPos(0, 2, 0)
+        val posM = BlockPos(1, 2, 0)
+        val posR = BlockPos(2, 2, 0)
+        context.placeTank(posL)
+        context.placeTank(posM)
+        context.placeTank(posR)
+
+        val state = context.getFluidState()
+        val water = FluidVariant.of(Fluids.WATER)
+        val storage = state.getStorage(context.absolutePos(posL))!!
+        Transaction.openOuter().use { tx ->
+            storage.insert(water, FluidConstants.BUCKET * 30, tx)
+            tx.commit()
+        }
+
+        // 中央タンクを破壊
+        context.level.destroyBlock(context.absolutePos(posM), true)
+
+        // ドロップされたアイテムのシェアを確認
+        val droppedStack = context.findDroppedTankItem(posM)
+        context.assertTrue(droppedStack != null, Component.literal("Dropped tank item should exist"))
+
+        val fluidData = droppedStack!!.get(CTDataComponentTypes.TANK_FLUID)
+        context.assertTrue(fluidData != null, Component.literal("Dropped item should have fluid data"))
+        context.assertTrue(
+            fluidData!!.amount == FluidConstants.BUCKET * 10,
+            Component.literal("Middle share should be 10 buckets but was ${fluidData.amount / FluidConstants.BUCKET}"),
+        )
+
+        // 残りのタンクは分断されてそれぞれ 10 バケツ
+        val sL = state.getStorage(context.absolutePos(posL))
+        val sR = state.getStorage(context.absolutePos(posR))
+        context.assertTrue(sL !== sR, Component.literal("Left and right should be separate groups"))
+        context.assertTrue(
+            sL!!.amount == FluidConstants.BUCKET * 10,
+            Component.literal("Left should have 10 buckets but was ${sL.amount / FluidConstants.BUCKET}"),
+        )
+        context.assertTrue(
+            sR!!.amount == FluidConstants.BUCKET * 10,
+            Component.literal("Right should have 10 buckets but was ${sR.amount / FluidConstants.BUCKET}"),
         )
         context.succeed()
     }

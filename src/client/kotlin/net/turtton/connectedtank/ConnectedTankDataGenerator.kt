@@ -6,10 +6,18 @@ import java.util.concurrent.CompletableFuture
 import net.fabricmc.fabric.api.client.datagen.v1.provider.FabricModelProvider
 import net.fabricmc.fabric.api.datagen.v1.DataGeneratorEntrypoint
 import net.fabricmc.fabric.api.datagen.v1.FabricDataGenerator
+//? if >=26.1 {
+/*import net.fabricmc.fabric.api.datagen.v1.FabricPackOutput*/
+//?} else {
 import net.fabricmc.fabric.api.datagen.v1.FabricDataOutput
+//?}
 import net.fabricmc.fabric.api.datagen.v1.provider.FabricLanguageProvider
 import net.fabricmc.fabric.api.datagen.v1.provider.FabricRecipeProvider
+//? if >=26.1 {
+/*import net.fabricmc.fabric.api.datagen.v1.provider.FabricTagsProvider*/
+//?} else {
 import net.fabricmc.fabric.api.datagen.v1.provider.FabricTagProvider
+//?}
 import net.minecraft.advancements.AdvancementRequirements
 import net.minecraft.advancements.AdvancementRewards
 //? if >=1.21.11 {
@@ -23,13 +31,24 @@ import net.minecraft.client.data.models.ItemModelGenerators
 import net.minecraft.client.data.models.model.ItemModelUtils
 import net.minecraft.client.data.models.model.ModelInstance
 import net.minecraft.client.data.models.blockstates.MultiPartGenerator
+//? if >=26.1 {
+/*import net.minecraft.client.renderer.block.dispatch.Variant*/
+//?} else {
 import net.minecraft.client.renderer.block.model.Variant
+//?}
 import net.minecraft.client.data.models.blockstates.ConditionBuilder
 import net.minecraft.client.data.models.MultiVariant
 import net.minecraft.data.recipes.RecipeOutput
 import net.minecraft.data.recipes.SmithingTransformRecipeBuilder
 import net.minecraft.world.item.Item
+//? if <26.1 {
 import net.minecraft.world.item.ItemStack
+//?}
+//? if >=26.1 {
+/*import net.minecraft.world.item.ItemStackTemplate
+import net.minecraft.world.item.crafting.CraftingRecipe
+import net.minecraft.world.item.crafting.Recipe*/
+//?}
 import net.minecraft.world.item.Items
 import net.minecraft.world.item.crafting.Ingredient
 import net.minecraft.world.item.crafting.ShapedRecipePattern
@@ -64,7 +83,11 @@ object ConnectedTankDataGenerator : DataGeneratorEntrypoint {
         pack.addProvider(::JapaneseLanguageProvider)
     }
 
+    //? if >=26.1 {
+    /*private class ModelProvider(output: FabricPackOutput) : FabricModelProvider(output) {*/
+    //?} else {
     private class ModelProvider(output: FabricDataOutput) : FabricModelProvider(output) {
+        //?}
         override fun generateBlockStateModels(generator: BlockModelGenerators) {
             generateBorderTemplateModels(generator)
 
@@ -347,10 +370,17 @@ object ConnectedTankDataGenerator : DataGeneratorEntrypoint {
         }
     }
 
+    //? if >=26.1 {
+    /*private class BlockTagProvider(
+        output: FabricPackOutput,
+        registriesFuture: CompletableFuture<HolderLookup.Provider>,
+    ) : FabricTagsProvider.BlockTagsProvider(output, registriesFuture) {*/
+    //?} else {
     private class BlockTagProvider(
         output: FabricDataOutput,
         registriesFuture: CompletableFuture<HolderLookup.Provider>,
     ) : FabricTagProvider.BlockTagProvider(output, registriesFuture) {
+        //?}
         override fun addTags(wrapperLookup: HolderLookup.Provider) {
             val pickaxeMineable = valueLookupBuilder(BlockTags.MINEABLE_WITH_PICKAXE)
             for (block in CTBlocks.ALL_TANKS) {
@@ -359,10 +389,17 @@ object ConnectedTankDataGenerator : DataGeneratorEntrypoint {
         }
     }
 
+    //? if >=26.1 {
+    /*private class CTRecipeProvider(
+        output: FabricPackOutput,
+        registriesFuture: CompletableFuture<HolderLookup.Provider>,
+    ) : FabricRecipeProvider(output, registriesFuture) {*/
+    //?} else {
     private class CTRecipeProvider(
         output: FabricDataOutput,
         registriesFuture: CompletableFuture<HolderLookup.Provider>,
     ) : FabricRecipeProvider(output, registriesFuture) {
+        //?}
         override fun getName(): String = "ConnectedTank Recipes"
 
         override fun createRecipeProvider(
@@ -441,12 +478,21 @@ object ConnectedTankDataGenerator : DataGeneratorEntrypoint {
                     "MMM",
                 )
                 val recipeKey = ResourceKey.create(Registries.RECIPE, ModIdentifier((output as net.turtton.connectedtank.block.ConnectedTankBlock).tier.id))
+                //? if >=26.1 {
+                /*val shaped = ShapedRecipe(
+                    Recipe.CommonInfo(true),
+                    CraftingRecipe.CraftingBookInfo(CraftingBookCategory.MISC, ""),
+                    raw,
+                    ItemStackTemplate(output.asItem()),
+                )*/
+                //?} else {
                 val shaped = ShapedRecipe(
                     "",
                     CraftingBookCategory.MISC,
                     raw,
                     ItemStack(output),
                 )
+                //?}
                 val recipe = TankUpgradeRecipe(shaped)
                 val advancement = exporter.advancement()
                     .addCriterion("has_the_recipe", RecipeUnlockedTrigger.unlocked(recipeKey))
@@ -480,12 +526,21 @@ object ConnectedTankDataGenerator : DataGeneratorEntrypoint {
                     "MMM",
                 )
                 val recipeKey = ResourceKey.create(Registries.RECIPE, ModIdentifier((output as net.turtton.connectedtank.block.ConnectedTankBlock).tier.id))
+                //? if >=26.1 {
+                /*val shaped = ShapedRecipe(
+                    Recipe.CommonInfo(true),
+                    CraftingRecipe.CraftingBookInfo(CraftingBookCategory.MISC, ""),
+                    raw,
+                    ItemStackTemplate(output.asItem()),
+                )*/
+                //?} else {
                 val shaped = ShapedRecipe(
                     "",
                     CraftingBookCategory.MISC,
                     raw,
                     ItemStack(output),
                 )
+                //?}
                 val recipe = TankUpgradeRecipe(shaped)
                 val advancement = exporter.advancement()
                     .addCriterion("has_the_recipe", RecipeUnlockedTrigger.unlocked(recipeKey))
@@ -505,10 +560,17 @@ object ConnectedTankDataGenerator : DataGeneratorEntrypoint {
         }
     }
 
+    //? if >=26.1 {
+    /*private class EnglishLanguageProvider(
+        output: FabricPackOutput,
+        registriesFuture: CompletableFuture<HolderLookup.Provider>,
+    ) : FabricLanguageProvider(output, registriesFuture) {*/
+    //?} else {
     private class EnglishLanguageProvider(
         output: FabricDataOutput,
         registriesFuture: CompletableFuture<HolderLookup.Provider>,
     ) : FabricLanguageProvider(output, registriesFuture) {
+        //?}
         override fun generateTranslations(
             registryLookup: HolderLookup.Provider,
             builder: TranslationBuilder,
@@ -537,10 +599,17 @@ object ConnectedTankDataGenerator : DataGeneratorEntrypoint {
         }
     }
 
+    //? if >=26.1 {
+    /*private class JapaneseLanguageProvider(
+        output: FabricPackOutput,
+        registriesFuture: CompletableFuture<HolderLookup.Provider>,
+    ) : FabricLanguageProvider(output, "ja_jp", registriesFuture) {*/
+    //?} else {
     private class JapaneseLanguageProvider(
         output: FabricDataOutput,
         registriesFuture: CompletableFuture<HolderLookup.Provider>,
     ) : FabricLanguageProvider(output, "ja_jp", registriesFuture) {
+        //?}
         override fun generateTranslations(
             registryLookup: HolderLookup.Provider,
             builder: TranslationBuilder,

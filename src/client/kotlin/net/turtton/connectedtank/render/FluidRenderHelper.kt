@@ -1,7 +1,11 @@
 package net.turtton.connectedtank.render
 
 import kotlin.math.sin
+//? if >=26.1 {
+/*import net.minecraft.util.LightCoordsUtil*/
+//?} else {
 import net.minecraft.client.renderer.LightTexture
+//?}
 import net.minecraft.client.renderer.texture.OverlayTexture
 import com.mojang.blaze3d.vertex.VertexConsumer
 //? if >=1.21.11 {
@@ -125,7 +129,11 @@ object FluidRenderHelper {
         maxZ: Float,
         neighbors: NeighborMask,
     ) {
+        //? if >=26.1 {
+        /*val fullLight = LightCoordsUtil.FULL_BRIGHT*/
+        //?} else {
         val fullLight = LightTexture.FULL_BRIGHT
+        //?}
         val ov = OverlayTexture.NO_OVERLAY
         val u0 = sprite.u0
         val u1 = sprite.u1

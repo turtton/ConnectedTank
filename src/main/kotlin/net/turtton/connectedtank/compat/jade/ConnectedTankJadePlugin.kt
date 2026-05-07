@@ -49,7 +49,11 @@ object TankFluidProvider :
         if (storage.isResourceBlank || storage.amount <= 0) return null
 
         val variant = storage.variant
+        //? if >=26.1 {
+        /*val fluidObject = JadeFluidObject.of(variant.fluid, storage.amount, variant.componentsPatch)*/
+        //?} else {
         val fluidObject = JadeFluidObject.of(variant.fluid, storage.amount, variant.components)
+        //?}
         val capacity = storage.bucketCapacity.toLong() * FluidConstants.BUCKET
         val data = FluidView.Data(fluidObject, capacity)
         return listOf(ViewGroup(listOf(data)))

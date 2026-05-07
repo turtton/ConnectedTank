@@ -195,14 +195,22 @@ class ConnectedTankBlock(val tier: TankTier, settings: Properties) :
         val storage = world.dataStorage.computeIfAbsent(FluidStoragePersistentState.TYPE)
         val tankStorage = storage.getStorage(pos)
         if (tankStorage == null) {
+            //? if >=26.1 {
+            /*player.sendOverlayMessage(Component.literal("No storage"))*/
+            //?} else {
             player.displayClientMessage(Component.literal("No storage"), true)
+            //?}
             return InteractionResult.SUCCESS
         }
 
         val fluidName = if (tankStorage.isResourceBlank) "Empty" else FluidVariantAttributes.getName(tankStorage.variant).string
         val buckets = tankStorage.amount.toDouble() / FluidConstants.BUCKET
         val capacity = tankStorage.bucketCapacity
+        //? if >=26.1 {
+        /*player.sendOverlayMessage(Component.literal("$fluidName: %.2f / %d buckets".format(buckets, capacity)))*/
+        //?} else {
         player.displayClientMessage(Component.literal("$fluidName: %.2f / %d buckets".format(buckets, capacity)), true)
+        //?}
         return InteractionResult.SUCCESS
     }
 
