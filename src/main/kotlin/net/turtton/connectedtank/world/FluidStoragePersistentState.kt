@@ -4,11 +4,11 @@ import com.mojang.serialization.Codec
 import com.mojang.serialization.codecs.RecordCodecBuilder
 import java.util.UUID
 import net.fabricmc.fabric.api.transfer.v1.fluid.FluidConstants
-import net.minecraft.server.world.ServerWorld
-import net.minecraft.util.Uuids
-import net.minecraft.util.math.BlockPos
-import net.minecraft.world.PersistentState
-import net.minecraft.world.PersistentStateType
+import net.minecraft.server.level.ServerLevel
+import net.minecraft.core.UUIDUtil
+import net.minecraft.core.BlockPos
+import net.minecraft.world.level.saveddata.SavedData
+import net.minecraft.world.level.saveddata.SavedDataType
 import net.turtton.connectedtank.MOD_ID
 import net.turtton.connectedtank.block.ConnectedTankBlock
 import net.turtton.connectedtank.block.TankFluidStorage
@@ -17,7 +17,7 @@ import net.turtton.connectedtank.config.CTServerConfig
 class FluidStoragePersistentState(
     positionalStorageMap: Map<BlockPos, UUID> = mapOf(),
     storageMap: Map<UUID, TankFluidStorage> = mapOf(),
-) : PersistentState() {
+) : SavedData() {
     private val positionalStorageMap: MutableMap<BlockPos, UUID> = positionalStorageMap.toMutableMap()
     private val storageMap: MutableMap<UUID, TankFluidStorage> = storageMap.toMutableMap()
 
@@ -28,8 +28,8 @@ class FluidStoragePersistentState(
     fun addIsolatedStorage(pos: BlockPos, storage: TankFluidStorage) {
         val uuid = UUID.randomUUID()
         positionalStorageMap[pos] = uuid
-        storageMap[uuid] = storage.also { it.onChanged = ::markDirty }
-        markDirty()
+        storageMap[uuid] = storage.also { it.onChanged = ::setDirty }
+        setDirty()
     }
 
     fun getGroupPositions(pos: BlockPos): List<BlockPos> {
@@ -43,7 +43,7 @@ class FluidStoragePersistentState(
 
     fun addStorage(pos: BlockPos, storage: TankFluidStorage, interactedAt: BlockPos? = null) {
         val allAdjacentPositions = adjacentOffsets
-            .map { pos.add(it) }
+            .map { pos.offset(it) }
             .filter { positionalStorageMap.containsKey(it) }
 
         // interactedAt が隣接座標に含まれる場合のみ有効、含まれなければ通常の優先度ロジックへフォールバック
@@ -59,8 +59,8 @@ class FluidStoragePersistentState(
         if (adjacentPositions.isEmpty()) {
             val uuid = UUID.randomUUID()
             positionalStorageMap[pos] = uuid
-            storageMap[uuid] = storage.also { it.onChanged = ::markDirty }
-            markDirty()
+            storageMap[uuid] = storage.also { it.onChanged = ::setDirty }
+            setDirty()
             return
         }
 
@@ -83,8 +83,8 @@ class FluidStoragePersistentState(
         if (primaryId == null) {
             val uuid = UUID.randomUUID()
             positionalStorageMap[pos] = uuid
-            storageMap[uuid] = storage.also { it.onChanged = ::markDirty }
-            markDirty()
+            storageMap[uuid] = storage.also { it.onChanged = ::setDirty }
+            setDirty()
             return
         }
 
@@ -116,7 +116,7 @@ class FluidStoragePersistentState(
 
         val mergedVariant = listOfNotNull(effectiveVariant, newVariant).distinct().firstOrNull()
         val existingData = mergedVariant?.let { TankFluidStorage.ExistingData(it, totalAmount) }
-        val mergedStorage = TankFluidStorage(totalBucketCap, existingData).also { it.onChanged = ::markDirty }
+        val mergedStorage = TankFluidStorage(totalBucketCap, existingData).also { it.onChanged = ::setDirty }
 
         if (idsToMerge.isNotEmpty()) {
             val keysToRemap = positionalStorageMap.entries
@@ -132,7 +132,7 @@ class FluidStoragePersistentState(
         storageMap[primaryId] = mergedStorage
         positionalStorageMap[pos] = primaryId
 
-        markDirty()
+        setDirty()
     }
 
     fun getGroupSize(pos: BlockPos): Int {
@@ -142,7 +142,7 @@ class FluidStoragePersistentState(
 
     fun removeStorage(
         pos: BlockPos,
-        world: ServerWorld? = null,
+        world: ServerLevel? = null,
         removedBucketCapacity: Int? = null,
     ): TankFluidStorage.ExistingData? {
         val uuid = positionalStorageMap.remove(pos) ?: return null
@@ -168,7 +168,7 @@ class FluidStoragePersistentState(
 
         if (groupPositions.isEmpty()) {
             storageMap.remove(uuid)
-            markDirty()
+            setDirty()
             return removedData
         }
 
@@ -183,14 +183,14 @@ class FluidStoragePersistentState(
             } else {
                 null
             }
-            storageMap[uuid] = TankFluidStorage(newBucketCap, data).also { it.onChanged = ::markDirty }
+            storageMap[uuid] = TankFluidStorage(newBucketCap, data).also { it.onChanged = ::setDirty }
         } else {
             // 分断あり: 位置ベースで液体を分配
             val remainingShares = calculatePositionShares(groupPositions, remainingAmount, world)
             splitIntoComponents(components, uuid, variant, remainingShares, world)
         }
 
-        markDirty()
+        setDirty()
         return removedData
     }
 
@@ -207,7 +207,7 @@ class FluidStoragePersistentState(
             while (queue.isNotEmpty()) {
                 val current = queue.removeFirst()
                 for (offset in adjacentOffsets) {
-                    val neighbor = current.add(offset)
+                    val neighbor = current.offset(offset)
                     if (neighbor in posSet && neighbor !in reachable) {
                         reachable.add(neighbor)
                         queue.add(neighbor)
@@ -222,7 +222,7 @@ class FluidStoragePersistentState(
         return components
     }
 
-    private fun computeGroupCapacity(positions: Iterable<BlockPos>, world: ServerWorld?): Int = if (world != null) {
+    private fun computeGroupCapacity(positions: Iterable<BlockPos>, world: ServerLevel?): Int = if (world != null) {
         positions.sumOf { p ->
             (world.getBlockState(p).block as? ConnectedTankBlock)?.tier?.bucketCapacity ?: defaultBucketCapacity
         }
@@ -235,7 +235,7 @@ class FluidStoragePersistentState(
         originalUuid: UUID,
         variant: net.fabricmc.fabric.api.transfer.v1.fluid.FluidVariant?,
         positionShares: Map<BlockPos, Long>,
-        world: ServerWorld?,
+        world: ServerLevel?,
     ) {
         // 最大の成分に元の UUID を再利用
         val sorted = components.sortedByDescending { it.size }
@@ -249,7 +249,7 @@ class FluidStoragePersistentState(
             } else {
                 null
             }
-            val storage = TankFluidStorage(newBucketCap, data).also { it.onChanged = ::markDirty }
+            val storage = TankFluidStorage(newBucketCap, data).also { it.onChanged = ::setDirty }
 
             if (index == 0) {
                 // 最大の成分は元の UUID を再利用
@@ -266,7 +266,7 @@ class FluidStoragePersistentState(
 
     fun calculateShare(
         pos: BlockPos,
-        world: ServerWorld?,
+        world: ServerLevel?,
         selfBucketCapacity: Int? = null,
     ): Long {
         val overrides = if (selfBucketCapacity != null) mapOf(pos to selfBucketCapacity) else emptyMap()
@@ -275,7 +275,7 @@ class FluidStoragePersistentState(
 
     fun calculateGroupShares(
         pos: BlockPos,
-        world: ServerWorld?,
+        world: ServerLevel?,
         capacityOverrides: Map<BlockPos, Int> = emptyMap(),
     ): Map<BlockPos, Long> {
         val uuid = positionalStorageMap[pos] ?: return emptyMap()
@@ -292,7 +292,7 @@ class FluidStoragePersistentState(
     private fun calculatePositionShares(
         positions: List<BlockPos>,
         totalAmount: Long,
-        world: ServerWorld?,
+        world: ServerLevel?,
         capacityOverrides: Map<BlockPos, Int> = emptyMap(),
     ): Map<BlockPos, Long> {
         if (positions.isEmpty() || totalAmount <= 0) return positions.associateWith { 0L }
@@ -347,7 +347,7 @@ class FluidStoragePersistentState(
 
     private fun getPositionCapacityDroplets(
         pos: BlockPos,
-        world: ServerWorld?,
+        world: ServerLevel?,
         capacityOverrides: Map<BlockPos, Int> = emptyMap(),
     ): Long {
         val bucketCap = capacityOverrides[pos] ?: if (world != null) {
@@ -363,7 +363,7 @@ class FluidStoragePersistentState(
             val CODEC: Codec<PositionalStorageEntry> = RecordCodecBuilder.create {
                 it.group(
                     BlockPos.CODEC.fieldOf("pos").forGetter(PositionalStorageEntry::pos),
-                    Uuids.CODEC.fieldOf("id").forGetter(PositionalStorageEntry::id),
+                    UUIDUtil.AUTHLIB_CODEC.fieldOf("id").forGetter(PositionalStorageEntry::id),
                 ).apply(it, ::PositionalStorageEntry)
             }
 
@@ -390,9 +390,14 @@ class FluidStoragePersistentState(
         val CODEC: Codec<FluidStoragePersistentState> = RecordCodecBuilder.create {
             it.group(
                 PositionalStorageEntry.MAP_CODEC.fieldOf("positionalStorageMap").forGetter(FluidStoragePersistentState::positionalStorageMap),
-                Codec.unboundedMap(Uuids.CODEC, TankFluidStorage.CODEC).fieldOf("storageMap").forGetter(FluidStoragePersistentState::storageMap),
+                Codec.unboundedMap(UUIDUtil.AUTHLIB_CODEC, TankFluidStorage.CODEC).fieldOf("storageMap").forGetter(FluidStoragePersistentState::storageMap),
             ).apply(it, ::FluidStoragePersistentState)
         }
-        val TYPE: PersistentStateType<FluidStoragePersistentState> = PersistentStateType("${MOD_ID}_fluid_storage", ::FluidStoragePersistentState, CODEC, null)
+        val TYPE: SavedDataType<FluidStoragePersistentState> = SavedDataType(
+            "${MOD_ID}_fluid_storage",
+            ::FluidStoragePersistentState,
+            CODEC,
+            net.minecraft.util.datafix.DataFixTypes.LEVEL,
+        )
     }
 }

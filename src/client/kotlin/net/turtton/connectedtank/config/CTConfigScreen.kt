@@ -2,7 +2,7 @@ package net.turtton.connectedtank.config
 
 import com.terraformersmc.modmenu.api.ConfigScreenFactory
 import com.terraformersmc.modmenu.api.ModMenuApi
-import net.minecraft.client.gui.screen.Screen
+import net.minecraft.client.gui.screens.Screen
 import net.turtton.connectedtank.ConnectedTank
 import net.turtton.connectedtank.block.TankTier
 import net.turtton.connectedtank.network.ConfigSyncPayload
@@ -20,8 +20,8 @@ class CTConfigScreen : ModMenuApi {
 
 private object CTConfigScreenBuilder {
     fun createConfigScreen(parent: Screen?): Screen {
-        val client = net.minecraft.client.MinecraftClient.getInstance()
-        val isExternalServer = client.world != null && !client.isInSingleplayer
+        val client = net.minecraft.client.Minecraft.getInstance()
+        val isExternalServer = client.level != null && !client.isLocalServer
 
         val serverConfig = if (isExternalServer) {
             SyncedServerConfig.syncedConfig ?: CTServerConfig.instance
@@ -30,10 +30,10 @@ private object CTConfigScreenBuilder {
         }
 
         val tankCapacityOption = dev.isxander.yacl3.api.Option.createBuilder<Int>()
-            .name(net.minecraft.text.Text.translatable("config.connectedtank.server.tankBucketCapacity"))
+            .name(net.minecraft.network.chat.Component.translatable("config.connectedtank.server.tankBucketCapacity"))
             .description(
                 dev.isxander.yacl3.api.OptionDescription.of(
-                    net.minecraft.text.Text.translatable("config.connectedtank.server.tankBucketCapacity.description"),
+                    net.minecraft.network.chat.Component.translatable("config.connectedtank.server.tankBucketCapacity.description"),
                 ),
             )
             .binding(
@@ -52,10 +52,10 @@ private object CTConfigScreenBuilder {
         val clientConfig = CTClientConfig.instance
 
         val renderQualityOption = dev.isxander.yacl3.api.Option.createBuilder<CTClientConfig.RenderQuality>()
-            .name(net.minecraft.text.Text.translatable("config.connectedtank.client.renderQuality"))
+            .name(net.minecraft.network.chat.Component.translatable("config.connectedtank.client.renderQuality"))
             .description(
                 dev.isxander.yacl3.api.OptionDescription.of(
-                    net.minecraft.text.Text.translatable("config.connectedtank.client.renderQuality.description"),
+                    net.minecraft.network.chat.Component.translatable("config.connectedtank.client.renderQuality.description"),
                 ),
             )
             .binding(
@@ -71,10 +71,10 @@ private object CTConfigScreenBuilder {
 
         val tierMultiplierOptions = TankTier.entries.map { tier ->
             dev.isxander.yacl3.api.Option.createBuilder<Int>()
-                .name(net.minecraft.text.Text.literal("${tier.name} multiplier"))
+                .name(net.minecraft.network.chat.Component.literal("${tier.name} multiplier"))
                 .description(
                     dev.isxander.yacl3.api.OptionDescription.of(
-                        net.minecraft.text.Text.literal("Capacity multiplier for ${tier.name} tier (default: ${tier.defaultMultiplier})"),
+                        net.minecraft.network.chat.Component.literal("Capacity multiplier for ${tier.name} tier (default: ${tier.defaultMultiplier})"),
                     ),
                 )
                 .binding(
@@ -92,25 +92,25 @@ private object CTConfigScreenBuilder {
         }
 
         val serverCategoryBuilder = dev.isxander.yacl3.api.ConfigCategory.createBuilder()
-            .name(net.minecraft.text.Text.translatable("config.connectedtank.category.server"))
+            .name(net.minecraft.network.chat.Component.translatable("config.connectedtank.category.server"))
             .option(tankCapacityOption)
         for (option in tierMultiplierOptions) {
             serverCategoryBuilder.option(option)
         }
 
         return dev.isxander.yacl3.api.YetAnotherConfigLib.createBuilder()
-            .title(net.minecraft.text.Text.translatable("config.connectedtank.title"))
+            .title(net.minecraft.network.chat.Component.translatable("config.connectedtank.title"))
             .category(serverCategoryBuilder.build())
             .category(
                 dev.isxander.yacl3.api.ConfigCategory.createBuilder()
-                    .name(net.minecraft.text.Text.translatable("config.connectedtank.category.client"))
+                    .name(net.minecraft.network.chat.Component.translatable("config.connectedtank.category.client"))
                     .option(renderQualityOption)
                     .build(),
             )
             .save {
                 if (!isExternalServer) {
                     CTServerConfig.instance.save()
-                    client.server?.let { server ->
+                    client.singleplayerServer?.let { server ->
                         server.execute { ConfigSyncPayload.broadcastToAll(server) }
                     }
                 }

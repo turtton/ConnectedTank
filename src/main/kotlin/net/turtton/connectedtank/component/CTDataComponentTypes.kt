@@ -1,17 +1,17 @@
 package net.turtton.connectedtank.component
 
-import net.minecraft.component.ComponentType
-import net.minecraft.registry.Registries
-import net.minecraft.registry.Registry
+import net.minecraft.core.component.DataComponentType
+import net.minecraft.core.registries.BuiltInRegistries
+import net.minecraft.core.Registry
 import net.turtton.connectedtank.block.TankFluidStorage
 import net.turtton.connectedtank.extension.ModIdentifier
 
 object CTDataComponentTypes {
-    val TANK_FLUID: ComponentType<TankFluidStorage.ExistingData> = Registry.register(
-        Registries.DATA_COMPONENT_TYPE,
+    val TANK_FLUID: DataComponentType<TankFluidStorage.ExistingData> = Registry.register(
+        BuiltInRegistries.DATA_COMPONENT_TYPE,
         ModIdentifier("tank_fluid"),
-        ComponentType.builder<TankFluidStorage.ExistingData>()
-            .codec(TankFluidStorage.ExistingData.CODEC)
+        DataComponentType.builder<TankFluidStorage.ExistingData>()
+            .persistent(TankFluidStorage.ExistingData.CODEC)
             .build(),
     )
 

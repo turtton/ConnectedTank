@@ -1,8 +1,12 @@
 package net.turtton.connectedtank.compat.jade
 
 import net.fabricmc.fabric.api.transfer.v1.fluid.FluidConstants
-import net.minecraft.server.world.ServerWorld
-import net.minecraft.util.Identifier
+import net.minecraft.server.level.ServerLevel
+//? if >=1.21.11 {
+/*import net.minecraft.resources.Identifier as ResourceLocation*/
+//?} else {
+import net.minecraft.resources.ResourceLocation
+//?}
 import net.turtton.connectedtank.MOD_ID
 import net.turtton.connectedtank.block.ConnectedTankBlockEntity
 import net.turtton.connectedtank.world.FluidStoragePersistentState
@@ -33,14 +37,14 @@ class ConnectedTankJadePlugin : IWailaPlugin {
 object TankFluidProvider :
     IServerExtensionProvider<FluidView.Data>,
     IClientExtensionProvider<FluidView.Data, FluidView> {
-    override fun getUid(): Identifier = Identifier.of(MOD_ID, "tank_fluid")
+    override fun getUid(): ResourceLocation = ResourceLocation.fromNamespaceAndPath(MOD_ID, "tank_fluid")
 
     override fun getGroups(accessor: Accessor<*>): List<ViewGroup<FluidView.Data>>? {
         val blockAccessor = accessor as BlockAccessor
-        val world = blockAccessor.level as ServerWorld
+        val world = blockAccessor.level as ServerLevel
         val pos = blockAccessor.position
 
-        val persistentState = world.persistentStateManager.getOrCreate(FluidStoragePersistentState.TYPE)
+        val persistentState = world.dataStorage.computeIfAbsent(FluidStoragePersistentState.TYPE)
         val storage = persistentState.getStorage(pos) ?: return null
         if (storage.isResourceBlank || storage.amount <= 0) return null
 

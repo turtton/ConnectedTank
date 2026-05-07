@@ -5,15 +5,15 @@ import net.fabricmc.fabric.api.transfer.v1.client.fluid.FluidVariantRendering
 import net.fabricmc.fabric.api.transfer.v1.fluid.FluidConstants
 //? if >=1.21.11 {
 /*import java.util.function.Consumer
-import net.minecraft.client.render.RenderLayers
-import net.minecraft.client.render.command.OrderedRenderCommandQueue
-import net.minecraft.client.render.item.model.special.SpecialModelRenderer
-import net.minecraft.client.render.item.model.special.SpecialModelTypes
-import net.minecraft.client.util.math.MatrixStack
-import net.minecraft.item.BlockItem
-import net.minecraft.item.ItemDisplayContext
-import net.minecraft.item.ItemStack
-import net.minecraft.util.Identifier
+import net.minecraft.client.renderer.rendertype.RenderTypes
+import net.minecraft.client.renderer.SubmitNodeCollector
+import net.minecraft.client.renderer.special.SpecialModelRenderer
+import net.minecraft.client.renderer.special.SpecialModelRenderers
+import com.mojang.blaze3d.vertex.PoseStack
+import net.minecraft.world.item.BlockItem
+import net.minecraft.world.item.ItemDisplayContext
+import net.minecraft.world.item.ItemStack
+import net.minecraft.resources.Identifier
 import net.turtton.connectedtank.block.ConnectedTankBlock
 import net.turtton.connectedtank.component.CTDataComponentTypes
 import net.turtton.connectedtank.config.CTClientConfig
@@ -25,13 +25,13 @@ import net.turtton.connectedtank.render.WaveParams
 import org.joml.Vector3fc
 
 class ConnectedTankItemRenderer : SpecialModelRenderer<ItemStack> {
-    override fun getData(stack: ItemStack): ItemStack? = stack
+    override fun extractArgument(stack: ItemStack): ItemStack? = stack
 
-    override fun render(
+    override fun submit(
         data: ItemStack?,
         displayContext: ItemDisplayContext,
-        matrices: MatrixStack,
-        queue: OrderedRenderCommandQueue,
+        matrices: PoseStack,
+        queue: SubmitNodeCollector,
         light: Int,
         overlay: Int,
         glint: Boolean,
@@ -54,7 +54,7 @@ class ConnectedTankItemRenderer : SpecialModelRenderer<ItemStack> {
         val quality = CTClientConfig.instance.renderQuality
         val gridSize = if (quality == RenderQuality.HIGH) 8 else 4
 
-        matrices.push()
+        matrices.pushPose()
         try {
             FluidRenderHelper.renderFluid(
                 queue,
@@ -63,21 +63,21 @@ class ConnectedTankItemRenderer : SpecialModelRenderer<ItemStack> {
                 argb,
                 fillLevel,
                 WaveParams(animTime = 0f, gridSize = gridSize),
-                renderLayer = RenderLayers.itemEntityTranslucentCull(sprite.atlasId),
+                renderLayer = RenderTypes.itemEntityTranslucentCull(sprite.atlasLocation()),
             )
         } finally {
-            matrices.pop()
+            matrices.popPose()
         }
     }
 
-    override fun collectVertices(vertices: Consumer<Vector3fc>) {
+    override fun getExtents(vertices: Consumer<Vector3fc>) {
     }
 
     class Unbaked : SpecialModelRenderer.Unbaked {
-        override fun bake(context: SpecialModelRenderer.BakeContext): SpecialModelRenderer<*> =
+        override fun bake(context: SpecialModelRenderer.BakingContext): SpecialModelRenderer<*> =
             ConnectedTankItemRenderer()
 
-        override fun getCodec(): MapCodec<out SpecialModelRenderer.Unbaked> = CODEC
+        override fun type(): MapCodec<out SpecialModelRenderer.Unbaked> = CODEC
 
         companion object {
             val CODEC: MapCodec<Unbaked> = MapCodec.unit(Unbaked())
@@ -85,25 +85,29 @@ class ConnectedTankItemRenderer : SpecialModelRenderer<ItemStack> {
     }
 
     companion object {
-        val ID: Identifier = Identifier.of("connectedtank", "tank_fluid")
+        val ID: Identifier = Identifier.fromNamespaceAndPath("connectedtank", "tank_fluid")
 
         fun register() {
-            SpecialModelTypes.ID_MAPPER.put(ID, Unbaked.CODEC)
+            SpecialModelRenderers.ID_MAPPER.put(ID, Unbaked.CODEC)
         }
     }
 }
 */
 //?} else {
-import net.minecraft.client.render.RenderLayer
-import net.minecraft.client.render.VertexConsumerProvider
-import net.minecraft.client.render.entity.model.LoadedEntityModels
-import net.minecraft.client.render.item.model.special.SpecialModelRenderer
-import net.minecraft.client.render.item.model.special.SpecialModelTypes
-import net.minecraft.client.util.math.MatrixStack
-import net.minecraft.item.BlockItem
-import net.minecraft.item.ItemDisplayContext
-import net.minecraft.item.ItemStack
-import net.minecraft.util.Identifier
+import net.minecraft.client.renderer.RenderType
+import net.minecraft.client.renderer.MultiBufferSource
+import net.minecraft.client.model.geom.EntityModelSet
+import net.minecraft.client.renderer.special.SpecialModelRenderer
+import net.minecraft.client.renderer.special.SpecialModelRenderers
+import com.mojang.blaze3d.vertex.PoseStack
+import net.minecraft.world.item.BlockItem
+import net.minecraft.world.item.ItemDisplayContext
+import net.minecraft.world.item.ItemStack
+//? if >=1.21.11 {
+/*import net.minecraft.resources.Identifier as ResourceLocation*/
+//?} else {
+import net.minecraft.resources.ResourceLocation
+//?}
 import net.turtton.connectedtank.block.ConnectedTankBlock
 import net.turtton.connectedtank.component.CTDataComponentTypes
 import net.turtton.connectedtank.config.CTClientConfig
@@ -115,13 +119,13 @@ import net.turtton.connectedtank.render.WaveParams
 import org.joml.Vector3f
 
 class ConnectedTankItemRenderer : SpecialModelRenderer<ItemStack> {
-    override fun getData(stack: ItemStack): ItemStack? = stack
+    override fun extractArgument(stack: ItemStack): ItemStack? = stack
 
     override fun render(
         data: ItemStack?,
         displayContext: ItemDisplayContext,
-        matrices: MatrixStack,
-        vertexConsumers: VertexConsumerProvider,
+        matrices: PoseStack,
+        vertexConsumers: MultiBufferSource,
         light: Int,
         overlay: Int,
         glint: Boolean,
@@ -143,7 +147,7 @@ class ConnectedTankItemRenderer : SpecialModelRenderer<ItemStack> {
         val quality = CTClientConfig.instance.renderQuality
         val gridSize = if (quality == RenderQuality.HIGH) 8 else 4
 
-        matrices.push()
+        matrices.pushPose()
         try {
             FluidRenderHelper.renderFluid(
                 vertexConsumers,
@@ -152,20 +156,20 @@ class ConnectedTankItemRenderer : SpecialModelRenderer<ItemStack> {
                 argb,
                 fillLevel,
                 WaveParams(animTime = 0f, gridSize = gridSize),
-                renderLayer = RenderLayer.getItemEntityTranslucentCull(sprite.atlasId),
+                renderLayer = RenderType.itemEntityTranslucentCull(sprite.atlasLocation()),
             )
         } finally {
-            matrices.pop()
+            matrices.popPose()
         }
     }
 
-    override fun collectVertices(vertices: MutableSet<Vector3f>) {
+    override fun getExtents(vertices: MutableSet<Vector3f>) {
     }
 
     class Unbaked : SpecialModelRenderer.Unbaked {
-        override fun bake(entityModels: LoadedEntityModels): SpecialModelRenderer<*> = ConnectedTankItemRenderer()
+        override fun bake(entityModels: EntityModelSet): SpecialModelRenderer<*> = ConnectedTankItemRenderer()
 
-        override fun getCodec(): MapCodec<out SpecialModelRenderer.Unbaked> = CODEC
+        override fun type(): MapCodec<out SpecialModelRenderer.Unbaked> = CODEC
 
         companion object {
             val CODEC: MapCodec<Unbaked> = MapCodec.unit(Unbaked())
@@ -173,10 +177,10 @@ class ConnectedTankItemRenderer : SpecialModelRenderer<ItemStack> {
     }
 
     companion object {
-        val ID: Identifier = Identifier.of("connectedtank", "tank_fluid")
+        val ID: ResourceLocation = ResourceLocation.fromNamespaceAndPath("connectedtank", "tank_fluid")
 
         fun register() {
-            SpecialModelTypes.ID_MAPPER.put(ID, Unbaked.CODEC)
+            SpecialModelRenderers.ID_MAPPER.put(ID, Unbaked.CODEC)
         }
     }
 }

@@ -1,14 +1,14 @@
 package net.turtton.connectedtank.block
 
 import net.fabricmc.fabric.api.transfer.v1.fluid.FluidStorage
-import net.minecraft.block.AbstractBlock
-import net.minecraft.block.Block
-import net.minecraft.registry.Registries
-import net.minecraft.registry.Registry
-import net.minecraft.registry.RegistryKey
-import net.minecraft.registry.RegistryKeys
-import net.minecraft.server.world.ServerWorld
-import net.minecraft.util.math.BlockPos
+import net.minecraft.world.level.block.state.BlockBehaviour
+import net.minecraft.world.level.block.Block
+import net.minecraft.core.registries.BuiltInRegistries
+import net.minecraft.core.Registry
+import net.minecraft.resources.ResourceKey
+import net.minecraft.core.registries.Registries
+import net.minecraft.server.level.ServerLevel
+import net.minecraft.core.BlockPos
 import net.turtton.connectedtank.config.CTServerConfig
 import net.turtton.connectedtank.extension.ModIdentifier
 import net.turtton.connectedtank.world.FluidStoragePersistentState
@@ -37,30 +37,30 @@ object CTBlocks {
     fun isConnectedTank(block: Block): Boolean = block in tankBlockSet
 
     private fun register(tier: TankTier): Block {
-        val blockKey = RegistryKey.of(RegistryKeys.BLOCK, ModIdentifier(tier.id))
-        val settings = AbstractBlock.Settings.create()
-            .nonOpaque()
+        val blockKey = ResourceKey.create(Registries.BLOCK, ModIdentifier(tier.id))
+        val settings = BlockBehaviour.Properties.of()
+            .noOcclusion()
             .strength(tier.hardness)
-            .allowsSpawning { _, _, _, _ -> false }
-            .solidBlock { _, _, _ -> false }
-            .suffocates { _, _, _ -> false }
-            .blockVision { _, _, _ -> false }
-            .registryKey(blockKey)
+            .isValidSpawn { _, _, _, _ -> false }
+            .isRedstoneConductor { _, _, _ -> false }
+            .isSuffocating { _, _, _ -> false }
+            .isViewBlocking { _, _, _ -> false }
+            .setId(blockKey)
         val block = ConnectedTankBlock(tier, settings)
-        return Registry.register(Registries.BLOCK, blockKey, block)
+        return Registry.register(BuiltInRegistries.BLOCK, blockKey, block)
     }
 
     fun init() {
         FluidStorage.SIDED.registerForBlocks({ world, pos, _, _, _ ->
-            val serverWorld = world as? ServerWorld ?: return@registerForBlocks null
-            val state = serverWorld.persistentStateManager.getOrCreate(FluidStoragePersistentState.TYPE)
+            val serverWorld = world as? ServerLevel ?: return@registerForBlocks null
+            val state = serverWorld.dataStorage.computeIfAbsent(FluidStoragePersistentState.TYPE)
             val storage = state.getStorage(pos) ?: run {
                 val block = serverWorld.getBlockState(pos).block as? ConnectedTankBlock
                 val cap = block?.tier?.bucketCapacity ?: CTServerConfig.instance.tankBucketCapacity
                 TankFluidStorage(cap).also { state.addStorage(pos, it) }
             }
             storage.onChanged = {
-                state.markDirty()
+                state.setDirty()
                 syncGroupBlockEntities(serverWorld, pos, state)
             }
             storage
@@ -68,9 +68,9 @@ object CTBlocks {
     }
 
     fun syncGroupBlockEntities(
-        world: ServerWorld,
+        world: ServerLevel,
         pos: BlockPos,
-        state: FluidStoragePersistentState = world.persistentStateManager.getOrCreate(FluidStoragePersistentState.TYPE),
+        state: FluidStoragePersistentState = world.dataStorage.computeIfAbsent(FluidStoragePersistentState.TYPE),
     ) {
         val storage = state.getStorage(pos) ?: return
         val groupId = state.getGroupId(pos)
@@ -84,15 +84,15 @@ object CTBlocks {
     }
 
     private fun updateConnectionStates(
-        world: ServerWorld,
+        world: ServerLevel,
         positions: Iterable<BlockPos>,
-        state: FluidStoragePersistentState = world.persistentStateManager.getOrCreate(FluidStoragePersistentState.TYPE),
+        state: FluidStoragePersistentState = world.dataStorage.computeIfAbsent(FluidStoragePersistentState.TYPE),
     ) {
         val positionsToUpdate = mutableSetOf<BlockPos>()
         for (pos in positions) {
             positionsToUpdate.add(pos)
             for (offset in FluidStoragePersistentState.ADJACENT_OFFSETS) {
-                val neighborPos = pos.add(offset)
+                val neighborPos = pos.offset(offset)
                 if (isConnectedTank(world.getBlockState(neighborPos).block)) {
                     positionsToUpdate.add(neighborPos)
                 }
@@ -104,17 +104,17 @@ object CTBlocks {
             val myGroupId = state.getGroupId(targetPos)
             var newState = currentState
             for ((direction, property) in ConnectedTankBlock.DIRECTION_PROPERTIES) {
-                val neighborPos = targetPos.offset(direction)
+                val neighborPos = targetPos.relative(direction)
                 val neighborBlock = world.getBlockState(neighborPos).block
                 val connected = if (isConnectedTank(neighborBlock) && myGroupId != null) {
                     state.getGroupId(neighborPos) == myGroupId
                 } else {
                     false
                 }
-                newState = newState.with(property, connected)
+                newState = newState.setValue(property, connected)
             }
             if (newState != currentState) {
-                world.setBlockState(targetPos, newState, Block.NOTIFY_LISTENERS)
+                world.setBlock(targetPos, newState, Block.UPDATE_CLIENTS)
             }
         }
     }

@@ -4,14 +4,14 @@ import net.fabricmc.fabric.api.gametest.v1.GameTest
 import net.fabricmc.fabric.api.transfer.v1.fluid.FluidConstants
 import net.fabricmc.fabric.api.transfer.v1.fluid.FluidVariant
 import net.fabricmc.fabric.api.transfer.v1.transaction.Transaction
-import net.minecraft.block.Blocks
-import net.minecraft.fluid.Fluids
-import net.minecraft.item.ItemStack
-import net.minecraft.test.TestContext
-import net.minecraft.text.Text
-import net.minecraft.util.math.BlockPos
-import net.minecraft.util.math.Direction
-import net.minecraft.world.GameMode
+import net.minecraft.world.level.block.Blocks
+import net.minecraft.world.level.material.Fluids
+import net.minecraft.world.item.ItemStack
+import net.minecraft.gametest.framework.GameTestHelper
+import net.minecraft.network.chat.Component
+import net.minecraft.core.BlockPos
+import net.minecraft.core.Direction
+import net.minecraft.world.level.GameType
 import net.turtton.connectedtank.block.CTBlocks
 import net.turtton.connectedtank.block.ConnectedTankBlock
 import net.turtton.connectedtank.block.TankFluidStorage
@@ -22,7 +22,7 @@ import net.turtton.connectedtank.item.CTItems
 import net.turtton.connectedtank.world.FluidStoragePersistentState
 
 object ConnectedTankGameTest {
-    private fun TestContext.getFluidState(): FluidStoragePersistentState = getWorld().persistentStateManager.getOrCreate(FluidStoragePersistentState.TYPE)
+    private fun GameTestHelper.getFluidState(): FluidStoragePersistentState = level.dataStorage.computeIfAbsent(FluidStoragePersistentState.TYPE)
 
     /**
      * useStackOnBlock で指定位置にタンクを設置する。
@@ -30,136 +30,136 @@ object ConnectedTankGameTest {
      * @param tankPos タンクを置きたい相対座標 (y >= 2)
      * @param tier 設置するタンクのティア (デフォルト BASE)
      */
-    private fun TestContext.placeTank(tankPos: BlockPos, tier: TankTier = TankTier.BASE) {
-        val basePos = tankPos.down()
-        setBlockState(basePos, Blocks.STONE)
-        val player = createMockPlayer(GameMode.SURVIVAL)
+    private fun GameTestHelper.placeTank(tankPos: BlockPos, tier: TankTier = TankTier.BASE) {
+        val basePos = tankPos.below()
+        setBlock(basePos, Blocks.STONE)
+        val player = makeMockPlayer(GameType.SURVIVAL)
         val item = CTItems.ALL_TANK_ITEMS.first {
             (CTBlocks.ALL_TANKS[CTItems.ALL_TANK_ITEMS.indexOf(it)] as? ConnectedTankBlock)?.tier == tier
         }
         val stack = ItemStack(item)
-        useStackOnBlock(player, stack, basePos.down(), Direction.UP)
+        placeAt(player, stack, basePos.below(), Direction.UP)
     }
 
     @GameTest
-    fun placeSingleTank(context: TestContext) {
+    fun placeSingleTank(context: GameTestHelper) {
         val tankPos = BlockPos(0, 2, 0)
         context.placeTank(tankPos)
 
         val state = context.getFluidState()
-        val storage = state.getStorage(context.getAbsolutePos(tankPos))
-        context.assertTrue(storage != null, Text.literal("Storage should exist after placing tank"))
-        context.assertTrue(storage!!.amount == 0L, Text.literal("New tank should be empty"))
+        val storage = state.getStorage(context.absolutePos(tankPos))
+        context.assertTrue(storage != null, Component.literal("Storage should exist after placing tank"))
+        context.assertTrue(storage!!.amount == 0L, Component.literal("New tank should be empty"))
         context.assertTrue(
             storage.bucketCapacity == CTServerConfig.DEFAULT_BUCKET_CAPACITY,
-            Text.literal("Single tank capacity should be ${CTServerConfig.DEFAULT_BUCKET_CAPACITY} buckets"),
+            Component.literal("Single tank capacity should be ${CTServerConfig.DEFAULT_BUCKET_CAPACITY} buckets"),
         )
-        context.complete()
+        context.succeed()
     }
 
     @GameTest
-    fun placeAdjacentTanksShareStorage(context: TestContext) {
+    fun placeAdjacentTanksShareStorage(context: GameTestHelper) {
         val pos1 = BlockPos(0, 2, 0)
         val pos2 = BlockPos(1, 2, 0)
         context.placeTank(pos1)
         context.placeTank(pos2)
 
         val state = context.getFluidState()
-        val storage1 = state.getStorage(context.getAbsolutePos(pos1))
-        val storage2 = state.getStorage(context.getAbsolutePos(pos2))
-        context.assertTrue(storage1 != null, Text.literal("Storage1 should exist"))
-        context.assertTrue(storage2 != null, Text.literal("Storage2 should exist"))
+        val storage1 = state.getStorage(context.absolutePos(pos1))
+        val storage2 = state.getStorage(context.absolutePos(pos2))
+        context.assertTrue(storage1 != null, Component.literal("Storage1 should exist"))
+        context.assertTrue(storage2 != null, Component.literal("Storage2 should exist"))
         context.assertTrue(
             storage1 === storage2,
-            Text.literal("Adjacent tanks should share the same storage instance"),
+            Component.literal("Adjacent tanks should share the same storage instance"),
         )
         context.assertTrue(
             storage1!!.bucketCapacity == CTServerConfig.DEFAULT_BUCKET_CAPACITY * 2,
-            Text.literal("Combined tank capacity should be ${CTServerConfig.DEFAULT_BUCKET_CAPACITY * 2} buckets"),
+            Component.literal("Combined tank capacity should be ${CTServerConfig.DEFAULT_BUCKET_CAPACITY * 2} buckets"),
         )
-        context.complete()
+        context.succeed()
     }
 
     @GameTest
-    fun removeTankFromCombinedReducesCapacity(context: TestContext) {
+    fun removeTankFromCombinedReducesCapacity(context: GameTestHelper) {
         val pos1 = BlockPos(0, 2, 0)
         val pos2 = BlockPos(1, 2, 0)
         context.placeTank(pos1)
         context.placeTank(pos2)
 
         val state = context.getFluidState()
-        state.removeStorage(context.getAbsolutePos(pos2), context.getWorld())
+        state.removeStorage(context.absolutePos(pos2), context.level)
 
-        val remaining = state.getStorage(context.getAbsolutePos(pos1))
-        context.assertTrue(remaining != null, Text.literal("Remaining storage should exist"))
+        val remaining = state.getStorage(context.absolutePos(pos1))
+        context.assertTrue(remaining != null, Component.literal("Remaining storage should exist"))
         context.assertTrue(
             remaining!!.bucketCapacity == CTServerConfig.DEFAULT_BUCKET_CAPACITY,
-            Text.literal("Capacity should be reduced to ${CTServerConfig.DEFAULT_BUCKET_CAPACITY} buckets after removing one tank"),
+            Component.literal("Capacity should be reduced to ${CTServerConfig.DEFAULT_BUCKET_CAPACITY} buckets after removing one tank"),
         )
 
-        val removed = state.getStorage(context.getAbsolutePos(pos2))
-        context.assertTrue(removed == null, Text.literal("Removed position should have no storage"))
-        context.complete()
+        val removed = state.getStorage(context.absolutePos(pos2))
+        context.assertTrue(removed == null, Component.literal("Removed position should have no storage"))
+        context.succeed()
     }
 
     @GameTest
-    fun fluidInsertionPersists(context: TestContext) {
+    fun fluidInsertionPersists(context: GameTestHelper) {
         val tankPos = BlockPos(0, 2, 0)
         context.placeTank(tankPos)
 
         val state = context.getFluidState()
-        val storage = state.getStorage(context.getAbsolutePos(tankPos))!!
+        val storage = state.getStorage(context.absolutePos(tankPos))!!
 
         val water = FluidVariant.of(Fluids.WATER)
         Transaction.openOuter().use { transaction ->
             val inserted = storage.insert(water, FluidConstants.BUCKET, transaction)
             context.assertTrue(
                 inserted == FluidConstants.BUCKET,
-                Text.literal("Should insert exactly 1 bucket"),
+                Component.literal("Should insert exactly 1 bucket"),
             )
             transaction.commit()
         }
 
-        context.assertTrue(storage.amount == FluidConstants.BUCKET, Text.literal("Storage should contain 1 bucket"))
-        context.assertTrue(storage.variant == water, Text.literal("Storage should contain water"))
-        context.complete()
+        context.assertTrue(storage.amount == FluidConstants.BUCKET, Component.literal("Storage should contain 1 bucket"))
+        context.assertTrue(storage.variant == water, Component.literal("Storage should contain water"))
+        context.succeed()
     }
 
     @GameTest
-    fun disconnectedTanksHaveSeparateStorage(context: TestContext) {
+    fun disconnectedTanksHaveSeparateStorage(context: GameTestHelper) {
         val pos1 = BlockPos(0, 2, 0)
         val pos2 = BlockPos(2, 2, 0) // 1 block gap
         context.placeTank(pos1)
         context.placeTank(pos2)
 
         val state = context.getFluidState()
-        val storage1 = state.getStorage(context.getAbsolutePos(pos1))
-        val storage2 = state.getStorage(context.getAbsolutePos(pos2))
-        context.assertTrue(storage1 != null, Text.literal("Storage1 should exist"))
-        context.assertTrue(storage2 != null, Text.literal("Storage2 should exist"))
+        val storage1 = state.getStorage(context.absolutePos(pos1))
+        val storage2 = state.getStorage(context.absolutePos(pos2))
+        context.assertTrue(storage1 != null, Component.literal("Storage1 should exist"))
+        context.assertTrue(storage2 != null, Component.literal("Storage2 should exist"))
         context.assertTrue(
             storage1 !== storage2,
-            Text.literal("Non-adjacent tanks should have separate storage"),
+            Component.literal("Non-adjacent tanks should have separate storage"),
         )
-        context.complete()
+        context.succeed()
     }
 
     @GameTest
-    fun removeAllTanksRemovesStorage(context: TestContext) {
+    fun removeAllTanksRemovesStorage(context: GameTestHelper) {
         val tankPos = BlockPos(0, 2, 0)
         context.placeTank(tankPos)
 
         val state = context.getFluidState()
-        val absPos = context.getAbsolutePos(tankPos)
-        context.assertTrue(state.getStorage(absPos) != null, Text.literal("Storage should exist"))
+        val absPos = context.absolutePos(tankPos)
+        context.assertTrue(state.getStorage(absPos) != null, Component.literal("Storage should exist"))
 
-        state.removeStorage(absPos, context.getWorld())
-        context.assertTrue(state.getStorage(absPos) == null, Text.literal("Storage should be removed"))
-        context.complete()
+        state.removeStorage(absPos, context.level)
+        context.assertTrue(state.getStorage(absPos) == null, Component.literal("Storage should be removed"))
+        context.succeed()
     }
 
     @GameTest
-    fun placesBetweenTwoGroupsMergesThem(context: TestContext) {
+    fun placesBetweenTwoGroupsMergesThem(context: GameTestHelper) {
         // [Group A] [gap] [Group B] → [Group A] [New Tank] [Group B] → 1 group
         val posA = BlockPos(0, 2, 0)
         val posB = BlockPos(2, 2, 0)
@@ -168,27 +168,27 @@ object ConnectedTankGameTest {
         context.placeTank(posB)
 
         val state = context.getFluidState()
-        val storageA = state.getStorage(context.getAbsolutePos(posA))
-        val storageB = state.getStorage(context.getAbsolutePos(posB))
-        context.assertTrue(storageA !== storageB, Text.literal("Groups should be separate before merge"))
+        val storageA = state.getStorage(context.absolutePos(posA))
+        val storageB = state.getStorage(context.absolutePos(posB))
+        context.assertTrue(storageA !== storageB, Component.literal("Groups should be separate before merge"))
 
         context.placeTank(posMid)
 
-        val sA = state.getStorage(context.getAbsolutePos(posA))
-        val sMid = state.getStorage(context.getAbsolutePos(posMid))
-        val sB = state.getStorage(context.getAbsolutePos(posB))
-        context.assertTrue(sA != null, Text.literal("Storage A should exist"))
-        context.assertTrue(sA === sMid, Text.literal("A and Mid should share storage"))
-        context.assertTrue(sA === sB, Text.literal("A and B should share storage after merge"))
+        val sA = state.getStorage(context.absolutePos(posA))
+        val sMid = state.getStorage(context.absolutePos(posMid))
+        val sB = state.getStorage(context.absolutePos(posB))
+        context.assertTrue(sA != null, Component.literal("Storage A should exist"))
+        context.assertTrue(sA === sMid, Component.literal("A and Mid should share storage"))
+        context.assertTrue(sA === sB, Component.literal("A and B should share storage after merge"))
         context.assertTrue(
             sA!!.bucketCapacity == CTServerConfig.DEFAULT_BUCKET_CAPACITY * 3,
-            Text.literal("Merged capacity should be ${CTServerConfig.DEFAULT_BUCKET_CAPACITY * 3} buckets but was ${sA.bucketCapacity}"),
+            Component.literal("Merged capacity should be ${CTServerConfig.DEFAULT_BUCKET_CAPACITY * 3} buckets but was ${sA.bucketCapacity}"),
         )
-        context.complete()
+        context.succeed()
     }
 
     @GameTest
-    fun mergeGroupsPreservesFluidAmount(context: TestContext) {
+    fun mergeGroupsPreservesFluidAmount(context: GameTestHelper) {
         val posA = BlockPos(0, 2, 0)
         val posB = BlockPos(2, 2, 0)
         context.placeTank(posA)
@@ -197,12 +197,12 @@ object ConnectedTankGameTest {
         val state = context.getFluidState()
         val water = FluidVariant.of(Fluids.WATER)
 
-        val storageA = state.getStorage(context.getAbsolutePos(posA))!!
+        val storageA = state.getStorage(context.absolutePos(posA))!!
         Transaction.openOuter().use { transaction ->
             storageA.insert(water, FluidConstants.BUCKET * 2, transaction)
             transaction.commit()
         }
-        val storageB = state.getStorage(context.getAbsolutePos(posB))!!
+        val storageB = state.getStorage(context.absolutePos(posB))!!
         Transaction.openOuter().use { transaction ->
             storageB.insert(water, FluidConstants.BUCKET * 3, transaction)
             transaction.commit()
@@ -211,17 +211,17 @@ object ConnectedTankGameTest {
         val posMid = BlockPos(1, 2, 0)
         context.placeTank(posMid)
 
-        val merged = state.getStorage(context.getAbsolutePos(posA))!!
+        val merged = state.getStorage(context.absolutePos(posA))!!
         context.assertTrue(
             merged.amount == FluidConstants.BUCKET * 5,
-            Text.literal("Merged amount should be 5 buckets but was ${merged.amount / FluidConstants.BUCKET}"),
+            Component.literal("Merged amount should be 5 buckets but was ${merged.amount / FluidConstants.BUCKET}"),
         )
-        context.assertTrue(merged.variant == water, Text.literal("Merged variant should be water"))
-        context.complete()
+        context.assertTrue(merged.variant == water, Component.literal("Merged variant should be water"))
+        context.succeed()
     }
 
     @GameTest
-    fun incompatibleGroupsConnectToPriority(context: TestContext) {
+    fun incompatibleGroupsConnectToPriority(context: GameTestHelper) {
         // 水タンクと溶岩タンクの間に空タンクを置くと、座標優先度で水側に接続
         val posA = BlockPos(0, 2, 0)
         val posB = BlockPos(2, 2, 0)
@@ -231,7 +231,7 @@ object ConnectedTankGameTest {
         val water = FluidVariant.of(Fluids.WATER)
         val lava = FluidVariant.of(Fluids.LAVA)
 
-        val storageA = state.getStorage(context.getAbsolutePos(posA))!!
+        val storageA = state.getStorage(context.absolutePos(posA))!!
         Transaction.openOuter().use { transaction ->
             storageA.insert(water, FluidConstants.BUCKET, transaction)
             transaction.commit()
@@ -241,29 +241,29 @@ object ConnectedTankGameTest {
             CTServerConfig.DEFAULT_BUCKET_CAPACITY,
             TankFluidStorage.ExistingData(lava, FluidConstants.BUCKET),
         )
-        state.addStorage(context.getAbsolutePos(posB), lavaStorage)
+        state.addStorage(context.absolutePos(posB), lavaStorage)
 
         val posMid = BlockPos(1, 2, 0)
         context.placeTank(posMid)
 
-        val sA = state.getStorage(context.getAbsolutePos(posA))
-        val sMid = state.getStorage(context.getAbsolutePos(posMid))
-        val sB = state.getStorage(context.getAbsolutePos(posB))
+        val sA = state.getStorage(context.absolutePos(posA))
+        val sMid = state.getStorage(context.absolutePos(posMid))
+        val sB = state.getStorage(context.absolutePos(posB))
         // 座標優先度: posA(0,2,0) < posB(2,2,0) → 空タンクは水グループに接続
-        context.assertTrue(sA === sMid, Text.literal("Empty tank should connect to water group (higher priority)"))
-        context.assertTrue(sB !== sMid, Text.literal("Lava group should remain separate"))
-        context.assertTrue(sA!!.variant == water, Text.literal("A should still have water"))
-        context.assertTrue(sB!!.variant == lava, Text.literal("B should still have lava"))
-        context.complete()
+        context.assertTrue(sA === sMid, Component.literal("Empty tank should connect to water group (higher priority)"))
+        context.assertTrue(sB !== sMid, Component.literal("Lava group should remain separate"))
+        context.assertTrue(sA!!.variant == water, Component.literal("A should still have water"))
+        context.assertTrue(sB!!.variant == lava, Component.literal("B should still have lava"))
+        context.succeed()
     }
 
     @GameTest
-    fun differentFluidTanksDoNotMerge(context: TestContext) {
+    fun differentFluidTanksDoNotMerge(context: GameTestHelper) {
         val pos1 = BlockPos(0, 2, 0)
         context.placeTank(pos1)
 
         val state = context.getFluidState()
-        val storage1 = state.getStorage(context.getAbsolutePos(pos1))!!
+        val storage1 = state.getStorage(context.absolutePos(pos1))!!
 
         val water = FluidVariant.of(Fluids.WATER)
         Transaction.openOuter().use { transaction ->
@@ -276,23 +276,23 @@ object ConnectedTankGameTest {
             CTServerConfig.DEFAULT_BUCKET_CAPACITY,
             TankFluidStorage.ExistingData(FluidVariant.of(Fluids.LAVA), FluidConstants.BUCKET),
         )
-        state.addStorage(context.getAbsolutePos(pos2), lavaStorage)
+        state.addStorage(context.absolutePos(pos2), lavaStorage)
 
-        val s1 = state.getStorage(context.getAbsolutePos(pos1))
-        val s2 = state.getStorage(context.getAbsolutePos(pos2))
-        context.assertTrue(s1 !== s2, Text.literal("Tanks with different fluids should not merge"))
-        context.assertTrue(s1!!.variant == water, Text.literal("First tank should still have water"))
+        val s1 = state.getStorage(context.absolutePos(pos1))
+        val s2 = state.getStorage(context.absolutePos(pos2))
+        context.assertTrue(s1 !== s2, Component.literal("Tanks with different fluids should not merge"))
+        context.assertTrue(s1!!.variant == water, Component.literal("First tank should still have water"))
         context.assertTrue(
             s2!!.variant == FluidVariant.of(Fluids.LAVA),
-            Text.literal("Second tank should have lava"),
+            Component.literal("Second tank should have lava"),
         )
-        context.complete()
+        context.succeed()
     }
 
     // === 座標優先度・interactedAt テスト ===
 
     @GameTest
-    fun interactedAtConnectsToSpecifiedGroup(context: TestContext) {
+    fun interactedAtConnectsToSpecifiedGroup(context: GameTestHelper) {
         // 水グループと溶岩グループの間で、interactedAt で溶岩側を指定
         val posA = BlockPos(0, 2, 0)
         val posB = BlockPos(2, 2, 0)
@@ -302,7 +302,7 @@ object ConnectedTankGameTest {
         val water = FluidVariant.of(Fluids.WATER)
         val lava = FluidVariant.of(Fluids.LAVA)
 
-        val storageA = state.getStorage(context.getAbsolutePos(posA))!!
+        val storageA = state.getStorage(context.absolutePos(posA))!!
         Transaction.openOuter().use { transaction ->
             storageA.insert(water, FluidConstants.BUCKET, transaction)
             transaction.commit()
@@ -312,25 +312,25 @@ object ConnectedTankGameTest {
             CTServerConfig.DEFAULT_BUCKET_CAPACITY,
             TankFluidStorage.ExistingData(lava, FluidConstants.BUCKET),
         )
-        state.addStorage(context.getAbsolutePos(posB), lavaStorage)
+        state.addStorage(context.absolutePos(posB), lavaStorage)
 
         // interactedAt で溶岩側 (posB) を指定して addStorage
         val posMid = BlockPos(1, 2, 0)
         val midStorage = TankFluidStorage(CTServerConfig.DEFAULT_BUCKET_CAPACITY)
-        state.addStorage(context.getAbsolutePos(posMid), midStorage, context.getAbsolutePos(posB))
+        state.addStorage(context.absolutePos(posMid), midStorage, context.absolutePos(posB))
 
-        val sA = state.getStorage(context.getAbsolutePos(posA))
-        val sMid = state.getStorage(context.getAbsolutePos(posMid))
-        val sB = state.getStorage(context.getAbsolutePos(posB))
-        context.assertTrue(sB === sMid, Text.literal("Middle should connect to lava group via interactedAt"))
-        context.assertTrue(sA !== sMid, Text.literal("Water group should remain separate"))
-        context.assertTrue(sA!!.variant == water, Text.literal("A should still have water"))
-        context.assertTrue(sB!!.variant == lava, Text.literal("B+Mid should have lava"))
-        context.complete()
+        val sA = state.getStorage(context.absolutePos(posA))
+        val sMid = state.getStorage(context.absolutePos(posMid))
+        val sB = state.getStorage(context.absolutePos(posB))
+        context.assertTrue(sB === sMid, Component.literal("Middle should connect to lava group via interactedAt"))
+        context.assertTrue(sA !== sMid, Component.literal("Water group should remain separate"))
+        context.assertTrue(sA!!.variant == water, Component.literal("A should still have water"))
+        context.assertTrue(sB!!.variant == lava, Component.literal("B+Mid should have lava"))
+        context.succeed()
     }
 
     @GameTest
-    fun interactedAtDoesNotMergeOtherGroups(context: TestContext) {
+    fun interactedAtDoesNotMergeOtherGroups(context: GameTestHelper) {
         // interactedAt 指定時、他の互換グループはマージしない
         val posA = BlockPos(0, 2, 0)
         val posB = BlockPos(2, 2, 0)
@@ -338,25 +338,25 @@ object ConnectedTankGameTest {
         context.placeTank(posB)
 
         val state = context.getFluidState()
-        val sA = state.getStorage(context.getAbsolutePos(posA))
-        val sB = state.getStorage(context.getAbsolutePos(posB))
-        context.assertTrue(sA !== sB, Text.literal("Groups should be separate before placement"))
+        val sA = state.getStorage(context.absolutePos(posA))
+        val sB = state.getStorage(context.absolutePos(posB))
+        context.assertTrue(sA !== sB, Component.literal("Groups should be separate before placement"))
 
         // interactedAt で posB を指定 → posA のグループとはマージしない
         val posMid = BlockPos(1, 2, 0)
         val midStorage = TankFluidStorage(CTServerConfig.DEFAULT_BUCKET_CAPACITY)
-        state.addStorage(context.getAbsolutePos(posMid), midStorage, context.getAbsolutePos(posB))
+        state.addStorage(context.absolutePos(posMid), midStorage, context.absolutePos(posB))
 
-        val sA2 = state.getStorage(context.getAbsolutePos(posA))
-        val sMid = state.getStorage(context.getAbsolutePos(posMid))
-        val sB2 = state.getStorage(context.getAbsolutePos(posB))
-        context.assertTrue(sB2 === sMid, Text.literal("Mid should connect to B"))
-        context.assertTrue(sA2 !== sMid, Text.literal("A should remain separate from Mid"))
-        context.complete()
+        val sA2 = state.getStorage(context.absolutePos(posA))
+        val sMid = state.getStorage(context.absolutePos(posMid))
+        val sB2 = state.getStorage(context.absolutePos(posB))
+        context.assertTrue(sB2 === sMid, Component.literal("Mid should connect to B"))
+        context.assertTrue(sA2 !== sMid, Component.literal("A should remain separate from Mid"))
+        context.succeed()
     }
 
     @GameTest
-    fun coordinatePrioritySelectsLowestCoordinate(context: TestContext) {
+    fun coordinatePrioritySelectsLowestCoordinate(context: GameTestHelper) {
         // Y が低い方が優先される
         val posBottom = BlockPos(1, 2, 0)
         val posTop = BlockPos(1, 4, 0)
@@ -367,12 +367,12 @@ object ConnectedTankGameTest {
         val water = FluidVariant.of(Fluids.WATER)
         val lava = FluidVariant.of(Fluids.LAVA)
 
-        val storageBottom = state.getStorage(context.getAbsolutePos(posBottom))!!
+        val storageBottom = state.getStorage(context.absolutePos(posBottom))!!
         Transaction.openOuter().use { tx ->
             storageBottom.insert(water, FluidConstants.BUCKET, tx)
             tx.commit()
         }
-        val storageTop = state.getStorage(context.getAbsolutePos(posTop))!!
+        val storageTop = state.getStorage(context.absolutePos(posTop))!!
         Transaction.openOuter().use { tx ->
             storageTop.insert(lava, FluidConstants.BUCKET, tx)
             tx.commit()
@@ -382,18 +382,18 @@ object ConnectedTankGameTest {
         val posMid = BlockPos(1, 3, 0)
         context.placeTank(posMid)
 
-        val sBottom = state.getStorage(context.getAbsolutePos(posBottom))
-        val sMid = state.getStorage(context.getAbsolutePos(posMid))
-        val sTop = state.getStorage(context.getAbsolutePos(posTop))
-        context.assertTrue(sBottom === sMid, Text.literal("Mid should connect to bottom (lower Y)"))
-        context.assertTrue(sTop !== sMid, Text.literal("Top should remain separate"))
-        context.complete()
+        val sBottom = state.getStorage(context.absolutePos(posBottom))
+        val sMid = state.getStorage(context.absolutePos(posMid))
+        val sTop = state.getStorage(context.absolutePos(posTop))
+        context.assertTrue(sBottom === sMid, Component.literal("Mid should connect to bottom (lower Y)"))
+        context.assertTrue(sTop !== sMid, Component.literal("Top should remain separate"))
+        context.succeed()
     }
 
     // === 分断検出テスト ===
 
     @GameTest
-    fun breakMiddleOfThreeSplitsIntoTwoGroups(context: TestContext) {
+    fun breakMiddleOfThreeSplitsIntoTwoGroups(context: GameTestHelper) {
         val posL = BlockPos(0, 2, 0)
         val posM = BlockPos(1, 2, 0)
         val posR = BlockPos(2, 2, 0)
@@ -402,32 +402,32 @@ object ConnectedTankGameTest {
         context.placeTank(posR)
 
         val state = context.getFluidState()
-        val sAll = state.getStorage(context.getAbsolutePos(posL))
+        val sAll = state.getStorage(context.absolutePos(posL))
         context.assertTrue(
             sAll!!.bucketCapacity == CTServerConfig.DEFAULT_BUCKET_CAPACITY * 3,
-            Text.literal("3 tanks should have ${CTServerConfig.DEFAULT_BUCKET_CAPACITY * 3} bucket capacity"),
+            Component.literal("3 tanks should have ${CTServerConfig.DEFAULT_BUCKET_CAPACITY * 3} bucket capacity"),
         )
 
-        state.removeStorage(context.getAbsolutePos(posM), context.getWorld())
+        state.removeStorage(context.absolutePos(posM), context.level)
 
-        val sL = state.getStorage(context.getAbsolutePos(posL))
-        val sR = state.getStorage(context.getAbsolutePos(posR))
-        context.assertTrue(sL != null, Text.literal("Left storage should exist"))
-        context.assertTrue(sR != null, Text.literal("Right storage should exist"))
-        context.assertTrue(sL !== sR, Text.literal("Left and right should be separate groups"))
+        val sL = state.getStorage(context.absolutePos(posL))
+        val sR = state.getStorage(context.absolutePos(posR))
+        context.assertTrue(sL != null, Component.literal("Left storage should exist"))
+        context.assertTrue(sR != null, Component.literal("Right storage should exist"))
+        context.assertTrue(sL !== sR, Component.literal("Left and right should be separate groups"))
         context.assertTrue(
             sL!!.bucketCapacity == CTServerConfig.DEFAULT_BUCKET_CAPACITY,
-            Text.literal("Left capacity should be ${CTServerConfig.DEFAULT_BUCKET_CAPACITY} but was ${sL.bucketCapacity}"),
+            Component.literal("Left capacity should be ${CTServerConfig.DEFAULT_BUCKET_CAPACITY} but was ${sL.bucketCapacity}"),
         )
         context.assertTrue(
             sR!!.bucketCapacity == CTServerConfig.DEFAULT_BUCKET_CAPACITY,
-            Text.literal("Right capacity should be ${CTServerConfig.DEFAULT_BUCKET_CAPACITY} but was ${sR.bucketCapacity}"),
+            Component.literal("Right capacity should be ${CTServerConfig.DEFAULT_BUCKET_CAPACITY} but was ${sR.bucketCapacity}"),
         )
-        context.complete()
+        context.succeed()
     }
 
     @GameTest
-    fun breakCornerOfLShapeSplitsIntoTwo(context: TestContext) {
+    fun breakCornerOfLShapeSplitsIntoTwo(context: GameTestHelper) {
         // L 字: (0,2,0) - (1,2,0) - (1,2,1)
         val posA = BlockPos(0, 2, 0)
         val posCorner = BlockPos(1, 2, 0)
@@ -437,18 +437,18 @@ object ConnectedTankGameTest {
         context.placeTank(posB)
 
         val state = context.getFluidState()
-        state.removeStorage(context.getAbsolutePos(posCorner), context.getWorld())
+        state.removeStorage(context.absolutePos(posCorner), context.level)
 
-        val sA = state.getStorage(context.getAbsolutePos(posA))
-        val sB = state.getStorage(context.getAbsolutePos(posB))
-        context.assertTrue(sA != null, Text.literal("A should exist"))
-        context.assertTrue(sB != null, Text.literal("B should exist"))
-        context.assertTrue(sA !== sB, Text.literal("A and B should be separate after corner break"))
-        context.complete()
+        val sA = state.getStorage(context.absolutePos(posA))
+        val sB = state.getStorage(context.absolutePos(posB))
+        context.assertTrue(sA != null, Component.literal("A should exist"))
+        context.assertTrue(sB != null, Component.literal("B should exist"))
+        context.assertTrue(sA !== sB, Component.literal("A and B should be separate after corner break"))
+        context.succeed()
     }
 
     @GameTest
-    fun breakOneFrom2x2KeepsGroupConnected(context: TestContext) {
+    fun breakOneFrom2x2KeepsGroupConnected(context: GameTestHelper) {
         // 2x2: (0,2,0) (1,2,0) (0,2,1) (1,2,1) → 1 つ破壊 → 残り 3 つは連結
         val pos00 = BlockPos(0, 2, 0)
         val pos10 = BlockPos(1, 2, 0)
@@ -460,25 +460,25 @@ object ConnectedTankGameTest {
         context.placeTank(pos11)
 
         val state = context.getFluidState()
-        state.removeStorage(context.getAbsolutePos(pos11), context.getWorld())
+        state.removeStorage(context.absolutePos(pos11), context.level)
 
-        val s00 = state.getStorage(context.getAbsolutePos(pos00))
-        val s10 = state.getStorage(context.getAbsolutePos(pos10))
-        val s01 = state.getStorage(context.getAbsolutePos(pos01))
-        context.assertTrue(s00 != null, Text.literal("00 should exist"))
-        context.assertTrue(s00 === s10, Text.literal("00 and 10 should share storage"))
-        context.assertTrue(s00 === s01, Text.literal("00 and 01 should share storage"))
+        val s00 = state.getStorage(context.absolutePos(pos00))
+        val s10 = state.getStorage(context.absolutePos(pos10))
+        val s01 = state.getStorage(context.absolutePos(pos01))
+        context.assertTrue(s00 != null, Component.literal("00 should exist"))
+        context.assertTrue(s00 === s10, Component.literal("00 and 10 should share storage"))
+        context.assertTrue(s00 === s01, Component.literal("00 and 01 should share storage"))
         context.assertTrue(
             s00!!.bucketCapacity == CTServerConfig.DEFAULT_BUCKET_CAPACITY * 3,
-            Text.literal("Remaining 3 tanks should have ${CTServerConfig.DEFAULT_BUCKET_CAPACITY * 3} bucket capacity but was ${s00.bucketCapacity}"),
+            Component.literal("Remaining 3 tanks should have ${CTServerConfig.DEFAULT_BUCKET_CAPACITY * 3} bucket capacity but was ${s00.bucketCapacity}"),
         )
-        context.complete()
+        context.succeed()
     }
 
     // === 液体均等分配テスト ===
 
     @GameTest
-    fun splitEvenFluidDistribution(context: TestContext) {
+    fun splitEvenFluidDistribution(context: GameTestHelper) {
         // 30 バケツ / 3 タンク → 破壊タンク 10, 残り各 10
         val posL = BlockPos(0, 2, 0)
         val posM = BlockPos(1, 2, 0)
@@ -489,35 +489,35 @@ object ConnectedTankGameTest {
 
         val state = context.getFluidState()
         val water = FluidVariant.of(Fluids.WATER)
-        val storage = state.getStorage(context.getAbsolutePos(posL))!!
+        val storage = state.getStorage(context.absolutePos(posL))!!
         Transaction.openOuter().use { tx ->
             storage.insert(water, FluidConstants.BUCKET * 30, tx)
             tx.commit()
         }
 
-        val removedData = state.removeStorage(context.getAbsolutePos(posM), context.getWorld())
+        val removedData = state.removeStorage(context.absolutePos(posM), context.level)
 
-        context.assertTrue(removedData != null, Text.literal("Removed data should not be null"))
+        context.assertTrue(removedData != null, Component.literal("Removed data should not be null"))
         context.assertTrue(
             removedData!!.amount == FluidConstants.BUCKET * 10,
-            Text.literal("Removed share should be 10 buckets but was ${removedData.amount / FluidConstants.BUCKET}"),
+            Component.literal("Removed share should be 10 buckets but was ${removedData.amount / FluidConstants.BUCKET}"),
         )
 
-        val sL = state.getStorage(context.getAbsolutePos(posL))
-        val sR = state.getStorage(context.getAbsolutePos(posR))
+        val sL = state.getStorage(context.absolutePos(posL))
+        val sR = state.getStorage(context.absolutePos(posR))
         context.assertTrue(
             sL!!.amount == FluidConstants.BUCKET * 10,
-            Text.literal("Left should have 10 buckets but was ${sL.amount / FluidConstants.BUCKET}"),
+            Component.literal("Left should have 10 buckets but was ${sL.amount / FluidConstants.BUCKET}"),
         )
         context.assertTrue(
             sR!!.amount == FluidConstants.BUCKET * 10,
-            Text.literal("Right should have 10 buckets but was ${sR.amount / FluidConstants.BUCKET}"),
+            Component.literal("Right should have 10 buckets but was ${sR.amount / FluidConstants.BUCKET}"),
         )
-        context.complete()
+        context.succeed()
     }
 
     @GameTest
-    fun splitUnevenFluidDistribution(context: TestContext) {
+    fun splitUnevenFluidDistribution(context: GameTestHelper) {
         // droplet 単位で端数が出るケース: (10 buckets + 2 droplets) / 3 tanks
         val posL = BlockPos(0, 2, 0)
         val posM = BlockPos(1, 2, 0)
@@ -529,42 +529,42 @@ object ConnectedTankGameTest {
         val state = context.getFluidState()
         val water = FluidVariant.of(Fluids.WATER)
         val totalAmount = FluidConstants.BUCKET * 10 + 2 // 810002 droplets
-        val storage = state.getStorage(context.getAbsolutePos(posL))!!
+        val storage = state.getStorage(context.absolutePos(posL))!!
         Transaction.openOuter().use { tx ->
             storage.insert(water, totalAmount, tx)
             tx.commit()
         }
 
-        val removedData = state.removeStorage(context.getAbsolutePos(posM), context.getWorld())
+        val removedData = state.removeStorage(context.absolutePos(posM), context.level)
 
         // 位置ベース分配: 同一 Y レベル・同一ティアなので累積丸めで按分
         // 810002 * 2/3 = 540001 (cumulative for posM) - 270000 (posL) = 270001
         val expectedRemoved = 270001L
-        context.assertTrue(removedData != null, Text.literal("Removed data should not be null"))
+        context.assertTrue(removedData != null, Component.literal("Removed data should not be null"))
         context.assertTrue(
             removedData!!.amount == expectedRemoved,
-            Text.literal("Removed share should be $expectedRemoved but was ${removedData.amount}"),
+            Component.literal("Removed share should be $expectedRemoved but was ${removedData.amount}"),
         )
 
         // remaining = 810002 - 270001 = 540001, 2 tanks (同一 Y レベル)
         // 累積丸め: posL = 270000, posR = 270001 (または逆)
-        val sL = state.getStorage(context.getAbsolutePos(posL))
-        val sR = state.getStorage(context.getAbsolutePos(posR))
+        val sL = state.getStorage(context.absolutePos(posL))
+        val sR = state.getStorage(context.absolutePos(posR))
         val leftAmt = sL!!.amount
         val rightAmt = sR!!.amount
         context.assertTrue(
             leftAmt + rightAmt == 540001L,
-            Text.literal("Total remaining should be 540001 but was ${leftAmt + rightAmt}"),
+            Component.literal("Total remaining should be 540001 but was ${leftAmt + rightAmt}"),
         )
         context.assertTrue(
             (leftAmt == 270001L && rightAmt == 270000L) || (leftAmt == 270000L && rightAmt == 270001L),
-            Text.literal("Amounts should be 270001+270000 but were $leftAmt+$rightAmt"),
+            Component.literal("Amounts should be 270001+270000 but were $leftAmt+$rightAmt"),
         )
-        context.complete()
+        context.succeed()
     }
 
     @GameTest
-    fun noSplitFluidReduction(context: TestContext) {
+    fun noSplitFluidReduction(context: GameTestHelper) {
         // 2 タンクから 1 つ破壊 (分断なし: 隣接なので分断にはならない)
         val pos1 = BlockPos(0, 2, 0)
         val pos2 = BlockPos(1, 2, 0)
@@ -573,66 +573,66 @@ object ConnectedTankGameTest {
 
         val state = context.getFluidState()
         val water = FluidVariant.of(Fluids.WATER)
-        val storage = state.getStorage(context.getAbsolutePos(pos1))!!
+        val storage = state.getStorage(context.absolutePos(pos1))!!
         Transaction.openOuter().use { tx ->
             storage.insert(water, FluidConstants.BUCKET * 20, tx)
             tx.commit()
         }
 
-        val removedData = state.removeStorage(context.getAbsolutePos(pos2), context.getWorld())
+        val removedData = state.removeStorage(context.absolutePos(pos2), context.level)
 
-        context.assertTrue(removedData != null, Text.literal("Removed data should not be null"))
+        context.assertTrue(removedData != null, Component.literal("Removed data should not be null"))
         context.assertTrue(
             removedData!!.amount == FluidConstants.BUCKET * 10,
-            Text.literal("Removed share should be 10 buckets but was ${removedData.amount / FluidConstants.BUCKET}"),
+            Component.literal("Removed share should be 10 buckets but was ${removedData.amount / FluidConstants.BUCKET}"),
         )
 
-        val remaining = state.getStorage(context.getAbsolutePos(pos1))
+        val remaining = state.getStorage(context.absolutePos(pos1))
         context.assertTrue(
             remaining!!.amount == FluidConstants.BUCKET * 10,
-            Text.literal("Remaining should have 10 buckets but was ${remaining.amount / FluidConstants.BUCKET}"),
+            Component.literal("Remaining should have 10 buckets but was ${remaining.amount / FluidConstants.BUCKET}"),
         )
-        context.complete()
+        context.succeed()
     }
 
     // === DataComponent テスト ===
 
     @GameTest
-    fun removeStorageReturnsFluidData(context: TestContext) {
+    fun removeStorageReturnsFluidData(context: GameTestHelper) {
         val tankPos = BlockPos(0, 2, 0)
         context.placeTank(tankPos)
 
         val state = context.getFluidState()
         val water = FluidVariant.of(Fluids.WATER)
-        val storage = state.getStorage(context.getAbsolutePos(tankPos))!!
+        val storage = state.getStorage(context.absolutePos(tankPos))!!
         Transaction.openOuter().use { tx ->
             storage.insert(water, FluidConstants.BUCKET * 5, tx)
             tx.commit()
         }
 
-        val result = state.removeStorage(context.getAbsolutePos(tankPos), context.getWorld())
-        context.assertTrue(result != null, Text.literal("Should return ExistingData"))
-        context.assertTrue(result!!.variant == water, Text.literal("Variant should be water"))
+        val result = state.removeStorage(context.absolutePos(tankPos), context.level)
+        context.assertTrue(result != null, Component.literal("Should return ExistingData"))
+        context.assertTrue(result!!.variant == water, Component.literal("Variant should be water"))
         context.assertTrue(
             result.amount == FluidConstants.BUCKET * 5,
-            Text.literal("Amount should be 5 buckets but was ${result.amount / FluidConstants.BUCKET}"),
+            Component.literal("Amount should be 5 buckets but was ${result.amount / FluidConstants.BUCKET}"),
         )
-        context.complete()
+        context.succeed()
     }
 
     @GameTest
-    fun removeEmptyStorageReturnsNull(context: TestContext) {
+    fun removeEmptyStorageReturnsNull(context: GameTestHelper) {
         val tankPos = BlockPos(0, 2, 0)
         context.placeTank(tankPos)
 
         val state = context.getFluidState()
-        val result = state.removeStorage(context.getAbsolutePos(tankPos), context.getWorld())
-        context.assertTrue(result == null, Text.literal("Empty tank should return null"))
-        context.complete()
+        val result = state.removeStorage(context.absolutePos(tankPos), context.level)
+        context.assertTrue(result == null, Component.literal("Empty tank should return null"))
+        context.succeed()
     }
 
     @GameTest
-    fun placeFluidTankRestoresStorage(context: TestContext) {
+    fun placeFluidTankRestoresStorage(context: GameTestHelper) {
         val tankPos = BlockPos(0, 2, 0)
         val water = FluidVariant.of(Fluids.WATER)
         val fluidData = TankFluidStorage.ExistingData(water, FluidConstants.BUCKET * 5)
@@ -640,27 +640,27 @@ object ConnectedTankGameTest {
         // DataComponent 付きタンクを直接 addStorage で追加
         val state = context.getFluidState()
         val tankStorage = TankFluidStorage(fluid = fluidData)
-        state.addStorage(context.getAbsolutePos(tankPos), tankStorage)
+        state.addStorage(context.absolutePos(tankPos), tankStorage)
 
-        val restored = state.getStorage(context.getAbsolutePos(tankPos))
-        context.assertTrue(restored != null, Text.literal("Restored storage should exist"))
-        context.assertTrue(restored!!.variant == water, Text.literal("Variant should be water"))
+        val restored = state.getStorage(context.absolutePos(tankPos))
+        context.assertTrue(restored != null, Component.literal("Restored storage should exist"))
+        context.assertTrue(restored!!.variant == water, Component.literal("Variant should be water"))
         context.assertTrue(
             restored.amount == FluidConstants.BUCKET * 5,
-            Text.literal("Amount should be 5 buckets but was ${restored.amount / FluidConstants.BUCKET}"),
+            Component.literal("Amount should be 5 buckets but was ${restored.amount / FluidConstants.BUCKET}"),
         )
-        context.complete()
+        context.succeed()
     }
 
     @GameTest
-    fun placeFluidTankMergesWithAdjacent(context: TestContext) {
+    fun placeFluidTankMergesWithAdjacent(context: GameTestHelper) {
         // 隣に水タンクがある状態で、水入りタンクを設置 → 液体量がマージされる
         val pos1 = BlockPos(0, 2, 0)
         context.placeTank(pos1)
 
         val state = context.getFluidState()
         val water = FluidVariant.of(Fluids.WATER)
-        val storage1 = state.getStorage(context.getAbsolutePos(pos1))!!
+        val storage1 = state.getStorage(context.absolutePos(pos1))!!
         Transaction.openOuter().use { tx ->
             storage1.insert(water, FluidConstants.BUCKET * 3, tx)
             tx.commit()
@@ -670,29 +670,29 @@ object ConnectedTankGameTest {
         val pos2 = BlockPos(1, 2, 0)
         val fluidData = TankFluidStorage.ExistingData(water, FluidConstants.BUCKET * 2)
         val newTankStorage = TankFluidStorage(fluid = fluidData)
-        state.addStorage(context.getAbsolutePos(pos2), newTankStorage)
+        state.addStorage(context.absolutePos(pos2), newTankStorage)
 
-        val merged = state.getStorage(context.getAbsolutePos(pos1))
-        context.assertTrue(merged != null, Text.literal("Merged storage should exist"))
+        val merged = state.getStorage(context.absolutePos(pos1))
+        context.assertTrue(merged != null, Component.literal("Merged storage should exist"))
         context.assertTrue(
             merged!!.amount == FluidConstants.BUCKET * 5,
-            Text.literal("Merged amount should be 5 buckets but was ${merged.amount / FluidConstants.BUCKET}"),
+            Component.literal("Merged amount should be 5 buckets but was ${merged.amount / FluidConstants.BUCKET}"),
         )
-        context.assertTrue(merged.variant == water, Text.literal("Variant should be water"))
-        context.complete()
+        context.assertTrue(merged.variant == water, Component.literal("Variant should be water"))
+        context.succeed()
     }
 
     // === 垂直スタック位置ベース分配テスト ===
 
-    private fun TestContext.placeVerticalTanks(vararg yPositions: Int, x: Int = 0, z: Int = 0): List<BlockPos> {
+    private fun GameTestHelper.placeVerticalTanks(vararg yPositions: Int, x: Int = 0, z: Int = 0): List<BlockPos> {
         val positions = yPositions.map { BlockPos(x, it, z) }
         val state = getFluidState()
         for (pos in positions) {
-            setBlockState(pos, CTBlocks.CONNECTED_TANK.defaultState)
+            setBlock(pos, CTBlocks.CONNECTED_TANK.defaultBlockState())
         }
         // 下から順に addStorage して接続
         for (pos in positions.sortedBy { it.y }) {
-            val absPos = getAbsolutePos(pos)
+            val absPos = absolutePos(pos)
             val storage = TankFluidStorage(CTServerConfig.DEFAULT_BUCKET_CAPACITY)
             state.addStorage(absPos, storage)
         }
@@ -700,13 +700,13 @@ object ConnectedTankGameTest {
     }
 
     @GameTest
-    fun verticalStackBottomGetsMoreFluid(context: TestContext) {
+    fun verticalStackBottomGetsMoreFluid(context: GameTestHelper) {
         // 3 段積み: 48 バケツ (50%) → 下=32, 中=16, 上=0
         val (posBottom, posMid, posTop) = context.placeVerticalTanks(2, 3, 4)
 
         val state = context.getFluidState()
         val water = FluidVariant.of(Fluids.WATER)
-        val storage = state.getStorage(context.getAbsolutePos(posBottom))!!
+        val storage = state.getStorage(context.absolutePos(posBottom))!!
         val bucketCap = CTServerConfig.DEFAULT_BUCKET_CAPACITY.toLong()
         val totalAmount = bucketCap * FluidConstants.BUCKET / 2 * 3 // 50% of total capacity
         Transaction.openOuter().use { tx ->
@@ -715,40 +715,40 @@ object ConnectedTankGameTest {
         }
 
         // 中間タンクを破壊 → 位置ベースで分配
-        val removedData = state.removeStorage(context.getAbsolutePos(posMid), context.getWorld())
+        val removedData = state.removeStorage(context.absolutePos(posMid), context.level)
         val expectedMid = (bucketCap / 2) * FluidConstants.BUCKET
         context.assertTrue(
             removedData != null,
-            Text.literal("Removed data should not be null"),
+            Component.literal("Removed data should not be null"),
         )
         context.assertTrue(
             removedData!!.amount == expectedMid,
-            Text.literal("Mid share should be $expectedMid but was ${removedData.amount}"),
+            Component.literal("Mid share should be $expectedMid but was ${removedData.amount}"),
         )
 
-        val sBottom = state.getStorage(context.getAbsolutePos(posBottom))
-        val sTop = state.getStorage(context.getAbsolutePos(posTop))
+        val sBottom = state.getStorage(context.absolutePos(posBottom))
+        val sTop = state.getStorage(context.absolutePos(posTop))
         val expectedBottom = bucketCap * FluidConstants.BUCKET
         context.assertTrue(
             sBottom!!.amount == expectedBottom,
-            Text.literal("Bottom should have $expectedBottom but was ${sBottom.amount}"),
+            Component.literal("Bottom should have $expectedBottom but was ${sBottom.amount}"),
         )
         context.assertTrue(
             sTop!!.amount == 0L,
-            Text.literal("Top should have 0 but was ${sTop.amount}"),
+            Component.literal("Top should have 0 but was ${sTop.amount}"),
         )
-        context.complete()
+        context.succeed()
     }
 
     @GameTest
-    fun verticalStackBreakBottomRedistributes(context: TestContext) {
+    fun verticalStackBreakBottomRedistributes(context: GameTestHelper) {
         // 3 段積み: 48 バケツ → 下を破壊
         // 下=32, 中=16, 上=0 → 下の 32 バケツがドロップ, 残り 16 バケツは中と上に再分配
         val (posBottom, posMid, posTop) = context.placeVerticalTanks(2, 3, 4)
 
         val state = context.getFluidState()
         val water = FluidVariant.of(Fluids.WATER)
-        val storage = state.getStorage(context.getAbsolutePos(posBottom))!!
+        val storage = state.getStorage(context.absolutePos(posBottom))!!
         val bucketCap = CTServerConfig.DEFAULT_BUCKET_CAPACITY.toLong()
         val totalAmount = bucketCap * FluidConstants.BUCKET / 2 * 3
         Transaction.openOuter().use { tx ->
@@ -756,40 +756,40 @@ object ConnectedTankGameTest {
             tx.commit()
         }
 
-        val removedData = state.removeStorage(context.getAbsolutePos(posBottom), context.getWorld())
+        val removedData = state.removeStorage(context.absolutePos(posBottom), context.level)
         val expectedBottom = bucketCap * FluidConstants.BUCKET
         context.assertTrue(
             removedData != null,
-            Text.literal("Removed data should not be null"),
+            Component.literal("Removed data should not be null"),
         )
         context.assertTrue(
             removedData!!.amount == expectedBottom,
-            Text.literal("Bottom share should be $expectedBottom but was ${removedData.amount}"),
+            Component.literal("Bottom share should be $expectedBottom but was ${removedData.amount}"),
         )
 
         // 残り 16 バケツ: 中と上は同一グループで共有ストレージ
-        val sMid = state.getStorage(context.getAbsolutePos(posMid))
-        val sTop = state.getStorage(context.getAbsolutePos(posTop))
+        val sMid = state.getStorage(context.absolutePos(posMid))
+        val sTop = state.getStorage(context.absolutePos(posTop))
         context.assertTrue(
             sMid === sTop,
-            Text.literal("Mid and Top should share the same storage"),
+            Component.literal("Mid and Top should share the same storage"),
         )
         val expectedRemaining = (bucketCap / 2) * FluidConstants.BUCKET
         context.assertTrue(
             sMid!!.amount == expectedRemaining,
-            Text.literal("Remaining group should have $expectedRemaining but was ${sMid.amount}"),
+            Component.literal("Remaining group should have $expectedRemaining but was ${sMid.amount}"),
         )
-        context.complete()
+        context.succeed()
     }
 
     @GameTest
-    fun verticalStackEmptyTopGetsNothing(context: TestContext) {
+    fun verticalStackEmptyTopGetsNothing(context: GameTestHelper) {
         // 2 段積み: 容量の 30% → 下のみに入り、上を破壊しても液体なし
         val (posBottom, posTop) = context.placeVerticalTanks(2, 3)
 
         val state = context.getFluidState()
         val water = FluidVariant.of(Fluids.WATER)
-        val storage = state.getStorage(context.getAbsolutePos(posBottom))!!
+        val storage = state.getStorage(context.absolutePos(posBottom))!!
         val bucketCap = CTServerConfig.DEFAULT_BUCKET_CAPACITY.toLong()
         val amount = bucketCap * FluidConstants.BUCKET * 30 / 100 // 30% of single tank
         Transaction.openOuter().use { tx ->
@@ -797,136 +797,136 @@ object ConnectedTankGameTest {
             tx.commit()
         }
 
-        val removedData = state.removeStorage(context.getAbsolutePos(posTop), context.getWorld())
+        val removedData = state.removeStorage(context.absolutePos(posTop), context.level)
         context.assertTrue(
             removedData == null,
-            Text.literal("Top tank should have no fluid to return"),
+            Component.literal("Top tank should have no fluid to return"),
         )
 
-        val sBottom = state.getStorage(context.getAbsolutePos(posBottom))
+        val sBottom = state.getStorage(context.absolutePos(posBottom))
         context.assertTrue(
             sBottom!!.amount == amount,
-            Text.literal("Bottom should retain all $amount but was ${sBottom.amount}"),
+            Component.literal("Bottom should retain all $amount but was ${sBottom.amount}"),
         )
-        context.complete()
+        context.succeed()
     }
 
     // === ティア別容量テスト ===
 
     @GameTest
-    fun tierCapacityMatchesMultiplier(context: TestContext) {
+    fun tierCapacityMatchesMultiplier(context: GameTestHelper) {
         val tankPos = BlockPos(0, 2, 0)
         context.placeTank(tankPos, TankTier.IRON)
 
         val state = context.getFluidState()
-        val storage = state.getStorage(context.getAbsolutePos(tankPos))
+        val storage = state.getStorage(context.absolutePos(tankPos))
         val expectedCapacity = CTServerConfig.instance.getTierCapacity(TankTier.IRON)
-        context.assertTrue(storage != null, Text.literal("Storage should exist"))
+        context.assertTrue(storage != null, Component.literal("Storage should exist"))
         context.assertTrue(
             storage!!.bucketCapacity == expectedCapacity,
-            Text.literal("Iron tank capacity should be $expectedCapacity but was ${storage.bucketCapacity}"),
+            Component.literal("Iron tank capacity should be $expectedCapacity but was ${storage.bucketCapacity}"),
         )
-        context.complete()
+        context.succeed()
     }
 
     @GameTest
-    fun differentTiersConnect(context: TestContext) {
+    fun differentTiersConnect(context: GameTestHelper) {
         val pos1 = BlockPos(0, 2, 0)
         val pos2 = BlockPos(1, 2, 0)
         context.placeTank(pos1, TankTier.BASE)
         context.placeTank(pos2, TankTier.IRON)
 
         val state = context.getFluidState()
-        val storage1 = state.getStorage(context.getAbsolutePos(pos1))
-        val storage2 = state.getStorage(context.getAbsolutePos(pos2))
-        context.assertTrue(storage1 != null, Text.literal("Storage1 should exist"))
-        context.assertTrue(storage2 != null, Text.literal("Storage2 should exist"))
+        val storage1 = state.getStorage(context.absolutePos(pos1))
+        val storage2 = state.getStorage(context.absolutePos(pos2))
+        context.assertTrue(storage1 != null, Component.literal("Storage1 should exist"))
+        context.assertTrue(storage2 != null, Component.literal("Storage2 should exist"))
         context.assertTrue(
             storage1 === storage2,
-            Text.literal("Different tier tanks should share storage when adjacent"),
+            Component.literal("Different tier tanks should share storage when adjacent"),
         )
         val expectedCapacity = CTServerConfig.instance.getTierCapacity(TankTier.BASE) +
             CTServerConfig.instance.getTierCapacity(TankTier.IRON)
         context.assertTrue(
             storage1!!.bucketCapacity == expectedCapacity,
-            Text.literal("Combined capacity should be $expectedCapacity but was ${storage1.bucketCapacity}"),
+            Component.literal("Combined capacity should be $expectedCapacity but was ${storage1.bucketCapacity}"),
         )
-        context.complete()
+        context.succeed()
     }
 
     // === getPickStack テスト ===
 
     @GameTest
-    fun pickStackWithIncludeDataContainsFluid(context: TestContext) {
+    fun pickStackWithIncludeDataContainsFluid(context: GameTestHelper) {
         val tankPos = BlockPos(0, 2, 0)
         context.placeTank(tankPos)
 
         val state = context.getFluidState()
         val water = FluidVariant.of(Fluids.WATER)
-        val storage = state.getStorage(context.getAbsolutePos(tankPos))!!
+        val storage = state.getStorage(context.absolutePos(tankPos))!!
         Transaction.openOuter().use { tx ->
             storage.insert(water, FluidConstants.BUCKET * 5, tx)
             tx.commit()
         }
 
-        val world = context.getWorld()
-        val absPos = context.getAbsolutePos(tankPos)
+        val world = context.level
+        val absPos = context.absolutePos(tankPos)
         val blockState = world.getBlockState(absPos)
         val block = blockState.block as ConnectedTankBlock
-        val stack = block.getPickStack(world, absPos, blockState, true)
+        val stack = block.getCloneItemStack(world, absPos, blockState, true)
 
         val fluidData = stack.get(CTDataComponentTypes.TANK_FLUID)
-        context.assertTrue(fluidData != null, Text.literal("Pick stack should have fluid data"))
-        context.assertTrue(fluidData!!.variant == water, Text.literal("Variant should be water"))
+        context.assertTrue(fluidData != null, Component.literal("Pick stack should have fluid data"))
+        context.assertTrue(fluidData!!.variant == water, Component.literal("Variant should be water"))
         context.assertTrue(
             fluidData.amount == FluidConstants.BUCKET * 5,
-            Text.literal("Should have 5 buckets but was ${fluidData.amount / FluidConstants.BUCKET}"),
+            Component.literal("Should have 5 buckets but was ${fluidData.amount / FluidConstants.BUCKET}"),
         )
-        context.complete()
+        context.succeed()
     }
 
     @GameTest
-    fun pickStackWithoutIncludeDataHasNoFluid(context: TestContext) {
+    fun pickStackWithoutIncludeDataHasNoFluid(context: GameTestHelper) {
         val tankPos = BlockPos(0, 2, 0)
         context.placeTank(tankPos)
 
         val state = context.getFluidState()
         val water = FluidVariant.of(Fluids.WATER)
-        val storage = state.getStorage(context.getAbsolutePos(tankPos))!!
+        val storage = state.getStorage(context.absolutePos(tankPos))!!
         Transaction.openOuter().use { tx ->
             storage.insert(water, FluidConstants.BUCKET * 5, tx)
             tx.commit()
         }
 
-        val world = context.getWorld()
-        val absPos = context.getAbsolutePos(tankPos)
+        val world = context.level
+        val absPos = context.absolutePos(tankPos)
         val blockState = world.getBlockState(absPos)
         val block = blockState.block as ConnectedTankBlock
-        val stack = block.getPickStack(world, absPos, blockState, false)
+        val stack = block.getCloneItemStack(world, absPos, blockState, false)
 
         val fluidData = stack.get(CTDataComponentTypes.TANK_FLUID)
-        context.assertTrue(fluidData == null, Text.literal("Pick stack without includeData should have no fluid data"))
-        context.complete()
+        context.assertTrue(fluidData == null, Component.literal("Pick stack without includeData should have no fluid data"))
+        context.succeed()
     }
 
     @GameTest
-    fun pickStackFromEmptyTankHasNoFluidData(context: TestContext) {
+    fun pickStackFromEmptyTankHasNoFluidData(context: GameTestHelper) {
         val tankPos = BlockPos(0, 2, 0)
         context.placeTank(tankPos)
 
-        val world = context.getWorld()
-        val absPos = context.getAbsolutePos(tankPos)
+        val world = context.level
+        val absPos = context.absolutePos(tankPos)
         val blockState = world.getBlockState(absPos)
         val block = blockState.block as ConnectedTankBlock
-        val stack = block.getPickStack(world, absPos, blockState, true)
+        val stack = block.getCloneItemStack(world, absPos, blockState, true)
 
         val fluidData = stack.get(CTDataComponentTypes.TANK_FLUID)
-        context.assertTrue(fluidData == null, Text.literal("Empty tank pick stack should have no fluid data"))
-        context.complete()
+        context.assertTrue(fluidData == null, Component.literal("Empty tank pick stack should have no fluid data"))
+        context.succeed()
     }
 
     @GameTest
-    fun pickStackFromConnectedTanksCalculatesShare(context: TestContext) {
+    fun pickStackFromConnectedTanksCalculatesShare(context: GameTestHelper) {
         val pos1 = BlockPos(0, 2, 0)
         val pos2 = BlockPos(1, 2, 0)
         val pos3 = BlockPos(2, 2, 0)
@@ -936,30 +936,30 @@ object ConnectedTankGameTest {
 
         val state = context.getFluidState()
         val water = FluidVariant.of(Fluids.WATER)
-        val storage = state.getStorage(context.getAbsolutePos(pos1))!!
+        val storage = state.getStorage(context.absolutePos(pos1))!!
         Transaction.openOuter().use { tx ->
             storage.insert(water, FluidConstants.BUCKET * 30, tx)
             tx.commit()
         }
 
-        val world = context.getWorld()
-        val absPos2 = context.getAbsolutePos(pos2)
+        val world = context.level
+        val absPos2 = context.absolutePos(pos2)
         val blockState = world.getBlockState(absPos2)
         val block = blockState.block as ConnectedTankBlock
-        val stack = block.getPickStack(world, absPos2, blockState, true)
+        val stack = block.getCloneItemStack(world, absPos2, blockState, true)
 
         val fluidData = stack.get(CTDataComponentTypes.TANK_FLUID)
-        context.assertTrue(fluidData != null, Text.literal("Pick stack should have fluid data"))
-        context.assertTrue(fluidData!!.variant == water, Text.literal("Variant should be water"))
+        context.assertTrue(fluidData != null, Component.literal("Pick stack should have fluid data"))
+        context.assertTrue(fluidData!!.variant == water, Component.literal("Variant should be water"))
         context.assertTrue(
             fluidData.amount == FluidConstants.BUCKET * 10,
-            Text.literal("Share should be 10 buckets but was ${fluidData.amount / FluidConstants.BUCKET}"),
+            Component.literal("Share should be 10 buckets but was ${fluidData.amount / FluidConstants.BUCKET}"),
         )
-        context.complete()
+        context.succeed()
     }
 
     @GameTest
-    fun splitDifferentTiersRecalculatesCapacity(context: TestContext) {
+    fun splitDifferentTiersRecalculatesCapacity(context: GameTestHelper) {
         // BASE - IRON - BASE → IRON を破壊 → BASE 2 つに分断
         val posL = BlockPos(0, 2, 0)
         val posM = BlockPos(1, 2, 0)
@@ -969,22 +969,22 @@ object ConnectedTankGameTest {
         context.placeTank(posR, TankTier.BASE)
 
         val state = context.getFluidState()
-        state.removeStorage(context.getAbsolutePos(posM), context.getWorld())
+        state.removeStorage(context.absolutePos(posM), context.level)
 
-        val sL = state.getStorage(context.getAbsolutePos(posL))
-        val sR = state.getStorage(context.getAbsolutePos(posR))
-        context.assertTrue(sL != null, Text.literal("Left storage should exist"))
-        context.assertTrue(sR != null, Text.literal("Right storage should exist"))
-        context.assertTrue(sL !== sR, Text.literal("Should be separate groups"))
+        val sL = state.getStorage(context.absolutePos(posL))
+        val sR = state.getStorage(context.absolutePos(posR))
+        context.assertTrue(sL != null, Component.literal("Left storage should exist"))
+        context.assertTrue(sR != null, Component.literal("Right storage should exist"))
+        context.assertTrue(sL !== sR, Component.literal("Should be separate groups"))
         val baseCap = CTServerConfig.instance.getTierCapacity(TankTier.BASE)
         context.assertTrue(
             sL!!.bucketCapacity == baseCap,
-            Text.literal("Left capacity should be $baseCap but was ${sL.bucketCapacity}"),
+            Component.literal("Left capacity should be $baseCap but was ${sL.bucketCapacity}"),
         )
         context.assertTrue(
             sR!!.bucketCapacity == baseCap,
-            Text.literal("Right capacity should be $baseCap but was ${sR.bucketCapacity}"),
+            Component.literal("Right capacity should be $baseCap but was ${sR.bucketCapacity}"),
         )
-        context.complete()
+        context.succeed()
     }
 }

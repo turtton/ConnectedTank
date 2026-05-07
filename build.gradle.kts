@@ -111,11 +111,6 @@ loom {
 }
 
 dependencies {
-    val yarnMappings = when (mcVersion) {
-        "1.21.8" -> "1.21.8+build.1"
-        "1.21.11" -> "1.21.11+build.5"
-        else -> error("Unsupported MC version: $mcVersion")
-    }
     val fabricApiVersion = when (mcVersion) {
         "1.21.8" -> "0.132.0+1.21.8"
         "1.21.11" -> "0.141.3+1.21.11"
@@ -143,7 +138,7 @@ dependencies {
     }
 
     minecraft("com.mojang:minecraft:$mcVersion")
-    mappings("net.fabricmc:yarn:$yarnMappings:v2")
+    mappings(loom.officialMojangMappings())
     modImplementation(libs.fabric.loader)
 
     modImplementation("net.fabricmc.fabric-api:fabric-api:$fabricApiVersion")

@@ -3,17 +3,17 @@ package net.turtton.connectedtank.block
 import java.util.UUID
 import net.fabricmc.fabric.api.transfer.v1.fluid.FluidConstants
 import net.fabricmc.fabric.api.transfer.v1.fluid.FluidVariant
-import net.minecraft.block.BlockState
-import net.minecraft.block.entity.BlockEntity
-import net.minecraft.nbt.NbtCompound
-import net.minecraft.network.listener.ClientPlayPacketListener
-import net.minecraft.network.packet.Packet
-import net.minecraft.network.packet.s2c.play.BlockEntityUpdateS2CPacket
-import net.minecraft.registry.RegistryWrapper
-import net.minecraft.storage.ReadView
-import net.minecraft.storage.WriteView
-import net.minecraft.util.Uuids
-import net.minecraft.util.math.BlockPos
+import net.minecraft.world.level.block.state.BlockState
+import net.minecraft.world.level.block.entity.BlockEntity
+import net.minecraft.nbt.CompoundTag
+import net.minecraft.network.protocol.game.ClientGamePacketListener
+import net.minecraft.network.protocol.Packet
+import net.minecraft.network.protocol.game.ClientboundBlockEntityDataPacket
+import net.minecraft.core.HolderLookup
+import net.minecraft.world.level.storage.ValueInput
+import net.minecraft.world.level.storage.ValueOutput
+import net.minecraft.core.UUIDUtil
+import net.minecraft.core.BlockPos
 import net.turtton.connectedtank.config.CTServerConfig
 import org.joml.Math.clamp
 
@@ -47,39 +47,39 @@ class ConnectedTankBlockEntity(
         amount = storage.amount
         capacity = storage.bucketCapacity.toLong() * FluidConstants.BUCKET
         groupId = newGroupId ?: groupId
-        val posCapacity = (world?.getBlockState(pos)?.block as? ConnectedTankBlock)?.tier?.bucketCapacity
+        val posCapacity = (level?.getBlockState(worldPosition)?.block as? ConnectedTankBlock)?.tier?.bucketCapacity
             ?: CTServerConfig.instance.tankBucketCapacity
         val posCapacityDroplets = posCapacity.toLong() * FluidConstants.BUCKET
         localFillLevel = if (posCapacityDroplets > 0) clamp(0f, 1f, localShare.toFloat() / posCapacityDroplets) else 0f
         if (variantChanged || amountChanged) {
-            waveStartTick = world?.time ?: 0L
+            waveStartTick = level?.gameTime ?: 0L
         }
-        markDirty()
-        world?.let { w ->
-            val state = w.getBlockState(pos)
-            w.updateListeners(pos, state, state, 3)
+        setChanged()
+        level?.let { w ->
+            val state = w.getBlockState(worldPosition)
+            w.sendBlockUpdated(worldPosition, state, state, 3)
         }
     }
 
-    override fun readData(view: ReadView) {
+    override fun loadAdditional(view: ValueInput) {
         fluidVariant = view.read("variant", FluidVariant.CODEC).orElse(FluidVariant.blank())
-        amount = view.getLong("amount", 0L)
-        capacity = view.getLong("capacity", 0L)
-        waveStartTick = view.getLong("waveStartTick", 0L)
-        localFillLevel = view.getFloat("localFillLevel", 0f)
-        groupId = view.read("groupId", Uuids.CODEC).orElse(null)
+        amount = view.getLongOr("amount", 0L)
+        capacity = view.getLongOr("capacity", 0L)
+        waveStartTick = view.getLongOr("waveStartTick", 0L)
+        localFillLevel = view.getFloatOr("localFillLevel", 0f)
+        groupId = view.read("groupId", UUIDUtil.AUTHLIB_CODEC).orElse(null)
     }
 
-    override fun writeData(view: WriteView) {
-        view.put("variant", FluidVariant.CODEC, fluidVariant)
+    override fun saveAdditional(view: ValueOutput) {
+        view.store("variant", FluidVariant.CODEC, fluidVariant)
         view.putLong("amount", amount)
         view.putLong("capacity", capacity)
         view.putLong("waveStartTick", waveStartTick)
         view.putFloat("localFillLevel", localFillLevel)
-        view.putNullable("groupId", Uuids.CODEC, groupId)
+        view.storeNullable("groupId", UUIDUtil.AUTHLIB_CODEC, groupId)
     }
 
-    override fun toUpdatePacket(): Packet<ClientPlayPacketListener> = BlockEntityUpdateS2CPacket.create(this)
+    override fun getUpdatePacket(): Packet<ClientGamePacketListener> = ClientboundBlockEntityDataPacket.create(this)
 
-    override fun toInitialChunkDataNbt(registries: RegistryWrapper.WrapperLookup): NbtCompound = createComponentlessNbt(registries)
+    override fun getUpdateTag(registries: HolderLookup.Provider): CompoundTag = saveCustomOnly(registries)
 }

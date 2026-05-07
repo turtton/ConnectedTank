@@ -6,12 +6,12 @@ import net.fabricmc.fabric.api.client.gametest.v1.context.TestServerContext
 import net.fabricmc.fabric.api.transfer.v1.fluid.FluidConstants
 import net.fabricmc.fabric.api.transfer.v1.fluid.FluidVariant
 import net.fabricmc.fabric.api.transfer.v1.transaction.Transaction
-import net.minecraft.client.gui.screen.ingame.InventoryScreen
-import net.minecraft.fluid.Fluids
-import net.minecraft.item.ItemStack
+import net.minecraft.client.gui.screens.inventory.InventoryScreen
+import net.minecraft.world.level.material.Fluids
+import net.minecraft.world.item.ItemStack
 import net.minecraft.server.MinecraftServer
-import net.minecraft.util.math.BlockPos
-import net.minecraft.world.World
+import net.minecraft.core.BlockPos
+import net.minecraft.world.level.Level
 import net.turtton.connectedtank.block.CTBlocks
 import net.turtton.connectedtank.block.TankFluidStorage
 import net.turtton.connectedtank.block.TankTier
@@ -64,12 +64,12 @@ object ConnectedTankClientGameTest : FabricClientGameTest {
 
     private fun clearArea(server: TestServerContext, basePos: BlockPos, sizeX: Int, sizeY: Int, sizeZ: Int) {
         server.onServer { srv ->
-            val world = srv.getWorld(World.OVERWORLD)!!
-            val state = world.persistentStateManager.getOrCreate(FluidStoragePersistentState.TYPE)
+            val world = srv.getLevel(Level.OVERWORLD)!!
+            val state = world.dataStorage.computeIfAbsent(FluidStoragePersistentState.TYPE)
             for (x in 0 until sizeX) {
                 for (y in 0 until sizeY) {
                     for (z in 0 until sizeZ) {
-                        val pos = basePos.add(x, y, z)
+                        val pos = basePos.offset(x, y, z)
                         if (state.getStorage(pos) != null) {
                             state.removeStorage(pos)
                         }
@@ -86,9 +86,9 @@ object ConnectedTankClientGameTest : FabricClientGameTest {
         fluid: TankFluidStorage.ExistingData? = null,
     ) {
         server.onServer { srv ->
-            val world = srv.getWorld(World.OVERWORLD)!!
-            world.setBlockState(pos, CTBlocks.CONNECTED_TANK.defaultState)
-            val persistentState = world.persistentStateManager.getOrCreate(FluidStoragePersistentState.TYPE)
+            val world = srv.getLevel(Level.OVERWORLD)!!
+            world.setBlockAndUpdate(pos, CTBlocks.CONNECTED_TANK.defaultBlockState())
+            val persistentState = world.dataStorage.computeIfAbsent(FluidStoragePersistentState.TYPE)
             val storage = TankFluidStorage(fluid = fluid)
             persistentState.addStorage(pos, storage)
             CTBlocks.syncGroupBlockEntities(world, pos, persistentState)
@@ -101,9 +101,9 @@ object ConnectedTankClientGameTest : FabricClientGameTest {
         fluid: TankFluidStorage.ExistingData,
     ) {
         server.onServer { srv ->
-            val world = srv.getWorld(World.OVERWORLD)!!
-            world.setBlockState(pos, CTBlocks.CONNECTED_TANK.defaultState)
-            val persistentState = world.persistentStateManager.getOrCreate(FluidStoragePersistentState.TYPE)
+            val world = srv.getLevel(Level.OVERWORLD)!!
+            world.setBlockAndUpdate(pos, CTBlocks.CONNECTED_TANK.defaultBlockState())
+            val persistentState = world.dataStorage.computeIfAbsent(FluidStoragePersistentState.TYPE)
             val storage = TankFluidStorage(fluid = fluid)
             persistentState.addIsolatedStorage(pos, storage)
             CTBlocks.syncGroupBlockEntities(world, pos, persistentState)
@@ -117,8 +117,8 @@ object ConnectedTankClientGameTest : FabricClientGameTest {
         amount: Long,
     ) {
         server.onServer { srv ->
-            val world = srv.getWorld(World.OVERWORLD)!!
-            val persistentState = world.persistentStateManager.getOrCreate(FluidStoragePersistentState.TYPE)
+            val world = srv.getLevel(Level.OVERWORLD)!!
+            val persistentState = world.dataStorage.computeIfAbsent(FluidStoragePersistentState.TYPE)
             val storage = persistentState.getStorage(pos) ?: error("Storage not found at $pos")
             Transaction.openOuter().use { tx ->
                 storage.insert(variant, amount, tx)
@@ -188,7 +188,7 @@ object ConnectedTankClientGameTest : FabricClientGameTest {
     private fun testVerticalConnectedTanks(context: ClientGameTestContext, server: TestServerContext) {
         clearArea(server, basePos, 3, 3, 3)
         val pos1 = basePos
-        val pos2 = basePos.up()
+        val pos2 = basePos.above()
         placeTank(server, pos1)
         placeTank(server, pos2)
         insertFluid(server, pos1, FluidVariant.of(Fluids.WATER), FluidConstants.BUCKET * TANK_CAPACITY * 2)
@@ -201,7 +201,7 @@ object ConnectedTankClientGameTest : FabricClientGameTest {
         // 同一液体で下のタンクのみに液体がある場合、上面が正しく描画されることを確認
         clearArea(server, basePos, 3, 3, 3)
         val pos1 = basePos
-        val pos2 = basePos.up()
+        val pos2 = basePos.above()
         placeTank(server, pos1)
         placeTank(server, pos2)
         // 下タンクの半分だけ液体を入れる（上タンクには液体なし）
@@ -217,7 +217,7 @@ object ConnectedTankClientGameTest : FabricClientGameTest {
         // addIsolatedStorage で確実に別グループにする
         clearArea(server, basePos, 3, 3, 3)
         val pos1 = basePos
-        val pos2 = basePos.up()
+        val pos2 = basePos.above()
         placeTank(server, pos1)
         insertFluid(server, pos1, FluidVariant.of(Fluids.WATER), FluidConstants.BUCKET * TANK_CAPACITY)
         placeIsolatedTank(
@@ -236,7 +236,7 @@ object ConnectedTankClientGameTest : FabricClientGameTest {
         // addIsolatedStorage でグループマージを回避して別グループを強制的に作る
         clearArea(server, basePos, 3, 3, 3)
         val pos1 = basePos
-        val pos2 = basePos.up()
+        val pos2 = basePos.above()
         placeTank(server, pos1)
         insertFluid(server, pos1, FluidVariant.of(Fluids.WATER), FluidConstants.BUCKET * TANK_CAPACITY)
         placeIsolatedTank(
@@ -270,9 +270,9 @@ object ConnectedTankClientGameTest : FabricClientGameTest {
         context.waitTicks(5)
 
         server.onServer { srv ->
-            val player = srv.playerManager.playerList.firstOrNull() ?: return@onServer
+            val player = srv.playerList.players.firstOrNull() ?: return@onServer
             val inventory = player.inventory
-            inventory.clear()
+            inventory.clearContent()
 
             var slot = 0
             val water = FluidVariant.of(Fluids.WATER)
@@ -289,7 +289,7 @@ object ConnectedTankClientGameTest : FabricClientGameTest {
                         TankFluidStorage.ExistingData(water, FluidConstants.BUCKET * tierCapacity / 2),
                     )
                 }
-                if (slot < 36) inventory.setStack(slot++, halfStack)
+                if (slot < 36) inventory.setItem(slot++, halfStack)
 
                 val fullStack = ItemStack(item).also { stack ->
                     stack.set(
@@ -297,7 +297,7 @@ object ConnectedTankClientGameTest : FabricClientGameTest {
                         TankFluidStorage.ExistingData(water, FluidConstants.BUCKET * tierCapacity),
                     )
                 }
-                if (slot < 36) inventory.setStack(slot++, fullStack)
+                if (slot < 36) inventory.setItem(slot++, fullStack)
             }
         }
         context.waitTicks(5)
