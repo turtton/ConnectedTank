@@ -7,7 +7,11 @@ import com.google.gson.reflect.TypeToken
 import com.google.gson.stream.JsonReader
 import java.io.StringReader
 import java.nio.file.Files
+//? if fabric {
 import net.fabricmc.loader.api.FabricLoader
+//?} else if neoforge {
+/*import net.neoforged.fml.loading.FMLPaths*/
+//?}
 import net.turtton.connectedtank.ConnectedTank
 import net.turtton.connectedtank.block.TankTier
 
@@ -32,7 +36,13 @@ class CTServerConfig(
         const val MAX_BUCKET_CAPACITY = 256
         val DEFAULT_TIER_MULTIPLIERS: Map<String, Int> = TankTier.entries.associate { it.name to it.defaultMultiplier }
         private val GSON: Gson = GsonBuilder().setPrettyPrinting().create()
-        private val CONFIG_DIR = FabricLoader.getInstance().configDir.resolve("connectedtank")
+        private val CONFIG_DIR =
+            //? if fabric {
+            FabricLoader.getInstance().configDir.resolve("connectedtank")
+
+        //?} else if neoforge {
+        /*FMLPaths.CONFIGDIR.get().resolve("connectedtank")*/
+        //?}
         private val CONFIG_PATH = CONFIG_DIR.resolve("server.json")
 
         @Volatile

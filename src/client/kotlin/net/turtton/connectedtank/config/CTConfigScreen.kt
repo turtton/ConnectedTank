@@ -1,3 +1,4 @@
+//? if fabric {
 package net.turtton.connectedtank.config
 
 import com.terraformersmc.modmenu.api.ConfigScreenFactory
@@ -120,3 +121,4 @@ private object CTConfigScreenBuilder {
             .generateScreen(parent)
     }
 }
+//?}

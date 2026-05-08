@@ -1,9 +1,13 @@
 package net.turtton.connectedtank.item
 
+//? if fabric {
 //? if >=26.1 {
 /*import net.fabricmc.fabric.api.creativetab.v1.FabricCreativeModeTab*/
 //?} else {
 import net.fabricmc.fabric.api.itemgroup.v1.FabricItemGroup
+//?}
+//?} else if neoforge {
+/*import net.minecraft.world.item.CreativeModeTab*/
 //?}
 import net.minecraft.world.item.BlockItem
 import net.minecraft.world.item.Item
@@ -65,10 +69,14 @@ object CTItems {
         Registry.register(
             BuiltInRegistries.CREATIVE_MODE_TAB,
             ITEM_GROUP_KEY,
+            //? if fabric {
             //? if >=26.1 {
             /*FabricCreativeModeTab.builder()*/
             //?} else {
             FabricItemGroup.builder()
+                //?}
+                //?} else if neoforge {
+                /*CreativeModeTab.builder()*/
                 //?}
                 .title(Component.translatable("itemGroup.connectedtank.item_group"))
                 .icon { ItemStack(CONNECTED_TANK) }

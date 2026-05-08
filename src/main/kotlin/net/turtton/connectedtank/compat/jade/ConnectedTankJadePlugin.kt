@@ -1,6 +1,7 @@
 package net.turtton.connectedtank.compat.jade
 
-import net.fabricmc.fabric.api.transfer.v1.fluid.FluidConstants
+//? if fabric {
+//?}
 import net.minecraft.server.level.ServerLevel
 //? if >=1.21.11 {
 /*import net.minecraft.resources.Identifier as ResourceLocation*/
@@ -9,6 +10,7 @@ import net.minecraft.resources.ResourceLocation
 //?}
 import net.turtton.connectedtank.MOD_ID
 import net.turtton.connectedtank.block.ConnectedTankBlockEntity
+import net.turtton.connectedtank.fluid.FLUID_BUCKET
 import net.turtton.connectedtank.world.FluidStoragePersistentState
 import snownee.jade.api.Accessor
 import snownee.jade.api.BlockAccessor
@@ -49,12 +51,16 @@ object TankFluidProvider :
         if (storage.isResourceBlank || storage.amount <= 0) return null
 
         val variant = storage.variant
+        //? if fabric {
         //? if >=26.1 {
         /*val fluidObject = JadeFluidObject.of(variant.fluid, storage.amount, variant.componentsPatch)*/
         //?} else {
         val fluidObject = JadeFluidObject.of(variant.fluid, storage.amount, variant.components)
         //?}
-        val capacity = storage.bucketCapacity.toLong() * FluidConstants.BUCKET
+        //?} else if neoforge {
+        /*val fluidObject = JadeFluidObject.of(variant.fluid, storage.amount, variant.componentsPatch)*/
+        //?}
+        val capacity = storage.bucketCapacity.toLong() * FLUID_BUCKET
         val data = FluidView.Data(fluidObject, capacity)
         return listOf(ViewGroup(listOf(data)))
     }

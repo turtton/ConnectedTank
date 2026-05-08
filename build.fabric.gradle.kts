@@ -154,6 +154,7 @@ dependencies {
 
 tasks {
     processResources {
+        duplicatesStrategy = DuplicatesStrategy.INCLUDE
         inputs.property("version", project.version)
         inputs.property("minecraft_version", mcVersion)
         inputs.property("java_version", 21)
@@ -171,6 +172,9 @@ tasks {
     }
     withType<JavaCompile>().configureEach {
         options.release.set(21)
+    }
+    withType<Jar>().configureEach {
+        duplicatesStrategy = DuplicatesStrategy.INCLUDE
     }
     val clientGametestJar = register<Jar>("clientGametestJar") {
         from(clientGametestSourceSet.output)

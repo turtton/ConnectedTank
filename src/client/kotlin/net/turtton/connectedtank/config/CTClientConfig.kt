@@ -6,7 +6,11 @@ import com.google.gson.JsonParser
 import com.google.gson.stream.JsonReader
 import java.io.StringReader
 import java.nio.file.Files
+//? if fabric {
 import net.fabricmc.loader.api.FabricLoader
+//?} else {
+/*import net.neoforged.fml.loading.FMLPaths*/
+//?}
 import net.turtton.connectedtank.ConnectedTank
 
 class CTClientConfig(
@@ -30,7 +34,13 @@ class CTClientConfig(
 
     companion object {
         private val GSON: Gson = GsonBuilder().setPrettyPrinting().create()
+
+        //? if fabric {
         private val CONFIG_DIR = FabricLoader.getInstance().configDir.resolve("connectedtank")
+
+        //?} else {
+        /*private val CONFIG_DIR = FMLPaths.CONFIGDIR.get().resolve("connectedtank")*/
+        //?}
         private val CONFIG_PATH = CONFIG_DIR.resolve("client.json")
 
         @Volatile

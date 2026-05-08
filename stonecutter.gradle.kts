@@ -3,7 +3,14 @@ plugins {
     alias(libs.plugins.spotless)
 }
 
-stonecutter active "1.21.8"
+stonecutter active "1.21.8-fabric"
+
+stonecutter {
+    parameters {
+        val loader = node.metadata.project.substringAfterLast("-")
+        constants.match(loader, "fabric", "neoforge")
+    }
+}
 
 repositories {
     mavenCentral()
@@ -12,6 +19,10 @@ repositories {
 spotless {
     kotlin {
         target("src/**/*.kt")
+        targetExclude(
+            "src/gametest/kotlin/net/turtton/connectedtank/test/ConnectedTankGameTest.kt",
+            "src/gametest/kotlin/net/turtton/connectedtank/test/ConnectedTankGameTestRegistration.kt",
+        )
         ktlint().editorConfigOverride(
             mapOf(
                 "ktlint_standard_import-ordering" to "disabled",

@@ -1,3 +1,4 @@
+//? if fabric {
 package net.turtton.connectedtank
 
 import com.google.gson.JsonArray
@@ -638,3 +639,4 @@ object ConnectedTankDataGenerator : DataGeneratorEntrypoint {
         }
     }
 }
+//?}

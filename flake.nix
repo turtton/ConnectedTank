@@ -48,7 +48,7 @@
               stonecutter-version = {
                 enable = true;
                 name = "Stonecutter vcsVersion guard";
-                entry = "${pkgs.bash}/bin/bash -c 'if ! grep -q '\"'\"'stonecutter active \"1.21.8\"'\"'\"' stonecutter.gradle.kts; then ${pkgs.gnused}/bin/sed -i '\"'\"'s/stonecutter active \".*\"/stonecutter active \"1.21.8\"/'\"'\"' stonecutter.gradle.kts; echo \"Fixed: stonecutter active version reset to 1.21.8 (vcsVersion). Please re-commit.\"; exit 1; fi'";
+                entry = "${pkgs.bash}/bin/bash -c 'if ! grep -q '\"'\"'stonecutter active \"1.21.8-fabric\"'\"'\"' stonecutter.gradle.kts; then ${pkgs.gnused}/bin/sed -i '\"'\"'s/stonecutter active \".*\"/stonecutter active \"1.21.8-fabric\"/'\"'\"' stonecutter.gradle.kts; echo \"Fixed: stonecutter active version reset to 1.21.8-fabric (vcsVersion). Please re-commit.\"; exit 1; fi'";
                 files = "stonecutter\\.gradle\\.kts$";
                 language = "system";
                 pass_filenames = false;

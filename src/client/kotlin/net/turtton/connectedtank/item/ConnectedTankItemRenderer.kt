@@ -1,10 +1,14 @@
 package net.turtton.connectedtank.item
 
 import com.mojang.serialization.MapCodec
+//? if fabric {
 import net.fabricmc.fabric.api.transfer.v1.client.fluid.FluidVariantRendering
-import net.fabricmc.fabric.api.transfer.v1.fluid.FluidConstants
+//?}
+import net.turtton.connectedtank.fluid.FLUID_BUCKET
+import net.turtton.connectedtank.fluid.isBlankVariant
 //? if >=1.21.11 {
-/*import java.util.function.Consumer
+/*import net.turtton.connectedtank.fluid.getVariantFluid
+import java.util.function.Consumer
 import net.minecraft.client.renderer.rendertype.RenderTypes
 import net.minecraft.client.renderer.SubmitNodeCollector
 import net.minecraft.client.renderer.special.SpecialModelRenderer
@@ -27,6 +31,10 @@ import net.turtton.connectedtank.render.WaveParams
 import org.joml.Vector3fc
 //? if >=26.1 {
 import net.minecraft.client.Minecraft
+//?} else if neoforge {
+import net.minecraft.client.Minecraft
+import net.minecraft.client.renderer.texture.TextureAtlas
+import net.neoforged.neoforge.client.extensions.common.IClientFluidTypeExtensions
 //?}
 
 class ConnectedTankItemRenderer : SpecialModelRenderer<ItemStack> {
@@ -56,20 +64,27 @@ class ConnectedTankItemRenderer : SpecialModelRenderer<ItemStack> {
     //?}
         data ?: return
         val fluidData = data.get(CTDataComponentTypes.TANK_FLUID) ?: return
-        if (fluidData.variant.isBlank || fluidData.amount <= 0L) return
+        if (fluidData.variant.isBlankVariant() || fluidData.amount <= 0L) return
 
         //? if >=26.1 {
         val fluidModels = Minecraft.getInstance().modelManager.fluidStateModelSet
-        val sprite = fluidModels.get(fluidData.variant.fluid.defaultFluidState()).stillMaterial().sprite()
+        val sprite = fluidModels.get(fluidData.variant.getVariantFluid().defaultFluidState()).stillMaterial().sprite()
+        //?} else if neoforge {
+        val extensions = IClientFluidTypeExtensions.of(fluidData.variant.getVariantFluid())
+        val sprite = Minecraft.getInstance().atlasManager.getAtlasOrThrow(TextureAtlas.LOCATION_BLOCKS).getSprite(extensions.getStillTexture())
         //?} else {
         val sprite = FluidVariantRendering.getSprite(fluidData.variant) ?: return
         //?}
+        //? if neoforge {
+        val color = IClientFluidTypeExtensions.of(fluidData.variant.getVariantFluid()).getTintColor()
+        //?} else {
         val color = FluidVariantRendering.getColor(fluidData.variant)
+        //?}
         val argb = (0xFF shl 24) or (color and 0x00FFFFFF)
 
         val tankBlock = (data.item as? BlockItem)?.block as? ConnectedTankBlock ?: return
         val serverConfig = SyncedServerConfig.syncedConfig ?: CTServerConfig.instance
-        val capacity = serverConfig.getTierCapacity(tankBlock.tier) * FluidConstants.BUCKET
+        val capacity = serverConfig.getTierCapacity(tankBlock.tier) * FLUID_BUCKET
         if (capacity <= 0L) return
         val fillLevel = (fluidData.amount.toFloat() / capacity.toFloat()).coerceIn(0f, 1f)
 
@@ -127,7 +142,9 @@ class ConnectedTankItemRenderer : SpecialModelRenderer<ItemStack> {
         val ID: Identifier = Identifier.fromNamespaceAndPath("connectedtank", "tank_fluid")
 
         fun register() {
+            //? if fabric {
             SpecialModelRenderers.ID_MAPPER.put(ID, Unbaked.CODEC)
+            //?}
         }
     }
 }
@@ -171,7 +188,7 @@ class ConnectedTankItemRenderer : SpecialModelRenderer<ItemStack> {
     ) {
         data ?: return
         val fluidData = data.get(CTDataComponentTypes.TANK_FLUID) ?: return
-        if (fluidData.variant.isBlank || fluidData.amount <= 0L) return
+        if (fluidData.variant.isBlankVariant() || fluidData.amount <= 0L) return
 
         val sprite = FluidVariantRendering.getSprite(fluidData.variant) ?: return
         val color = FluidVariantRendering.getColor(fluidData.variant)
@@ -179,7 +196,7 @@ class ConnectedTankItemRenderer : SpecialModelRenderer<ItemStack> {
 
         val tankBlock = (data.item as? BlockItem)?.block as? ConnectedTankBlock ?: return
         val serverConfig = SyncedServerConfig.syncedConfig ?: CTServerConfig.instance
-        val capacity = serverConfig.getTierCapacity(tankBlock.tier) * FluidConstants.BUCKET
+        val capacity = serverConfig.getTierCapacity(tankBlock.tier) * FLUID_BUCKET
         if (capacity <= 0L) return
         val fillLevel = (fluidData.amount.toFloat() / capacity.toFloat()).coerceIn(0f, 1f)
 

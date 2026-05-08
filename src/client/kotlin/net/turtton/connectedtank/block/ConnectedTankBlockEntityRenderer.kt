@@ -1,9 +1,13 @@
 package net.turtton.connectedtank.block
 
 import kotlin.math.max
+//? if fabric {
 import net.fabricmc.fabric.api.transfer.v1.client.fluid.FluidVariantRendering
+//?}
 //? if >=1.21.11 {
-/*import net.fabricmc.fabric.api.transfer.v1.fluid.FluidVariant
+/*import net.turtton.connectedtank.fluid.PlatformFluidVariant
+import net.turtton.connectedtank.fluid.isBlankVariant
+import net.turtton.connectedtank.fluid.getVariantFluid
 import net.minecraft.client.renderer.blockentity.BlockEntityRenderer
 import net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider
 import net.minecraft.client.renderer.blockentity.state.BlockEntityRenderState
@@ -12,6 +16,11 @@ import net.minecraft.client.renderer.SubmitNodeCollector
 //? if >=26.1 {
 import net.minecraft.client.renderer.state.level.CameraRenderState
 import net.minecraft.client.Minecraft
+//?} else if neoforge {
+import net.minecraft.client.Minecraft
+import net.minecraft.client.renderer.state.CameraRenderState
+import net.minecraft.client.renderer.texture.TextureAtlas
+import net.neoforged.neoforge.client.extensions.common.IClientFluidTypeExtensions
 //?} else {
 import net.minecraft.client.renderer.state.CameraRenderState
 //?}
@@ -52,18 +61,25 @@ class ConnectedTankBlockEntityRenderer(
         super.extractRenderState(entity, state, tickDelta, cameraPos, crumbling)
 
         state.localFillLevel = entity.localFillLevel
-        if (entity.localFillLevel <= 0f || entity.fluidVariant.isBlank) {
+        if (entity.localFillLevel <= 0f || entity.fluidVariant.isBlankVariant()) {
             state.sprite = null
             return
         }
 
         //? if >=26.1 {
         val fluidModels = Minecraft.getInstance().modelManager.fluidStateModelSet
-        state.sprite = fluidModels.get(entity.fluidVariant.fluid.defaultFluidState()).stillMaterial().sprite()
+        state.sprite = fluidModels.get(entity.fluidVariant.getVariantFluid().defaultFluidState()).stillMaterial().sprite()
+        //?} else if neoforge {
+        val extensions = IClientFluidTypeExtensions.of(entity.fluidVariant.getVariantFluid())
+        state.sprite = Minecraft.getInstance().atlasManager.getAtlasOrThrow(TextureAtlas.LOCATION_BLOCKS).getSprite(extensions.getStillTexture())
         //?} else {
         state.sprite = FluidVariantRendering.getSprite(entity.fluidVariant)
         //?}
+        //? if neoforge {
+        val color = IClientFluidTypeExtensions.of(entity.fluidVariant.getVariantFluid()).getTintColor()
+        //?} else {
         val color = FluidVariantRendering.getColor(entity.fluidVariant)
+        //?}
         state.argb = (0xFF shl 24) or (color and 0x00FFFFFF)
 
         val world = entity.level
@@ -151,6 +167,7 @@ import net.minecraft.core.BlockPos
 import net.minecraft.world.phys.Vec3
 import net.turtton.connectedtank.config.CTClientConfig
 import net.turtton.connectedtank.config.CTClientConfig.RenderQuality
+import net.turtton.connectedtank.fluid.isBlankVariant
 import net.turtton.connectedtank.render.FluidRenderHelper
 import net.turtton.connectedtank.render.NeighborMask
 import net.turtton.connectedtank.render.WaveParams
@@ -171,7 +188,7 @@ class ConnectedTankBlockEntityRenderer(
         overlay: Int,
         cameraPos: Vec3,
     ) {
-        if (entity.localFillLevel <= 0f || entity.fluidVariant.isBlank) return
+        if (entity.localFillLevel <= 0f || entity.fluidVariant.isBlankVariant()) return
 
         val sprite = FluidVariantRendering.getSprite(entity.fluidVariant) ?: return
         val color = FluidVariantRendering.getColor(entity.fluidVariant)

@@ -1,10 +1,15 @@
 package net.turtton.connectedtank.block
 
 import java.util.concurrent.ConcurrentHashMap
-import net.fabricmc.fabric.api.transfer.v1.fluid.FluidConstants
+//? if fabric {
 import net.fabricmc.fabric.api.transfer.v1.fluid.FluidStorageUtil
 import net.fabricmc.fabric.api.transfer.v1.fluid.FluidVariantAttributes
 import net.fabricmc.loader.api.FabricLoader
+//?} else if neoforge {
+/*import net.neoforged.fml.loading.FMLLoader
+import net.neoforged.neoforge.capabilities.Capabilities
+import net.neoforged.neoforge.transfer.fluid.FluidUtil*/
+//?}
 import net.minecraft.world.level.block.Block
 import net.minecraft.world.level.block.EntityBlock
 import net.minecraft.world.level.block.state.BlockState
@@ -31,6 +36,7 @@ import net.minecraft.world.level.LevelReader
 import net.minecraft.world.level.ScheduledTickAccess
 import net.turtton.connectedtank.component.CTDataComponentTypes
 import net.turtton.connectedtank.config.CTServerConfig
+import net.turtton.connectedtank.fluid.FLUID_BUCKET
 import net.turtton.connectedtank.world.FluidStoragePersistentState
 
 class ConnectedTankBlock(val tier: TankTier, settings: Properties) :
@@ -185,7 +191,11 @@ class ConnectedTankBlock(val tier: TankTier, settings: Properties) :
     }
 
     override fun useWithoutItem(state: BlockState, world: Level, pos: BlockPos, player: Player, hit: BlockHitResult): InteractionResult {
+        //? if fabric {
         if (!FabricLoader.getInstance().isDevelopmentEnvironment) return InteractionResult.PASS
+        //?} else if neoforge {
+        /*if (FMLLoader.getCurrent().isProduction) return InteractionResult.PASS*/
+        //?}
         if (world !is ServerLevel) return InteractionResult.SUCCESS
 
         val storage = world.dataStorage.computeIfAbsent(FluidStoragePersistentState.TYPE)
@@ -199,8 +209,16 @@ class ConnectedTankBlock(val tier: TankTier, settings: Properties) :
             return InteractionResult.SUCCESS
         }
 
-        val fluidName = if (tankStorage.isResourceBlank) "Empty" else FluidVariantAttributes.getName(tankStorage.variant).string
-        val buckets = tankStorage.amount.toDouble() / FluidConstants.BUCKET
+        val fluidName = if (tankStorage.isResourceBlank) {
+            "Empty"
+        } else {
+            //? if fabric {
+            FluidVariantAttributes.getName(tankStorage.variant).string
+            //?} else if neoforge {
+            /*tankStorage.variant.hoverName.string*/
+            //?}
+        }
+        val buckets = tankStorage.amount.toDouble() / FLUID_BUCKET
         val capacity = tankStorage.bucketCapacity
         //? if >=26.1 {
         /*player.sendOverlayMessage(Component.literal("$fluidName: %.2f / %d buckets".format(buckets, capacity)))*/
@@ -215,6 +233,7 @@ class ConnectedTankBlock(val tier: TankTier, settings: Properties) :
 
         val persistentState = world.dataStorage.computeIfAbsent(FluidStoragePersistentState.TYPE)
         val tankStorage = persistentState.getStorage(pos) ?: return InteractionResult.TRY_WITH_EMPTY_HAND
+        //? if fabric {
         val result = FluidStorageUtil.interactWithFluidStorage(tankStorage, player, hand)
         return if (result) {
             CTBlocks.syncGroupBlockEntities(world, pos, persistentState)
@@ -222,5 +241,15 @@ class ConnectedTankBlock(val tier: TankTier, settings: Properties) :
         } else {
             InteractionResult.TRY_WITH_EMPTY_HAND
         }
+        //?} else if neoforge {
+        /*val handler = world.getCapability(Capabilities.Fluid.BLOCK, pos, hit.direction) ?: tankStorage
+        val actionResult = FluidUtil.interactWithFluidHandler(player, hand, pos, handler)
+        return if (actionResult) {
+            CTBlocks.syncGroupBlockEntities(world, pos, persistentState)
+            InteractionResult.SUCCESS
+        } else {
+            InteractionResult.TRY_WITH_EMPTY_HAND
+        }*/
+        //?}
     }
 }

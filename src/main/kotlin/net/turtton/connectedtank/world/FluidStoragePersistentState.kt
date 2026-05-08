@@ -3,7 +3,8 @@ package net.turtton.connectedtank.world
 import com.mojang.serialization.Codec
 import com.mojang.serialization.codecs.RecordCodecBuilder
 import java.util.UUID
-import net.fabricmc.fabric.api.transfer.v1.fluid.FluidConstants
+//? if fabric {
+//?}
 import net.minecraft.server.level.ServerLevel
 import net.minecraft.core.UUIDUtil
 import net.minecraft.core.BlockPos
@@ -13,6 +14,10 @@ import net.turtton.connectedtank.MOD_ID
 import net.turtton.connectedtank.block.ConnectedTankBlock
 import net.turtton.connectedtank.block.TankFluidStorage
 import net.turtton.connectedtank.config.CTServerConfig
+import net.turtton.connectedtank.fluid.FLUID_BUCKET
+import net.turtton.connectedtank.fluid.PlatformFluidVariant
+import net.turtton.connectedtank.fluid.isBlankVariant
+import net.turtton.connectedtank.fluid.isSameFluid
 //? if >=26.1 {
 /*import net.turtton.connectedtank.extension.ModIdentifier*/
 //?}
@@ -76,8 +81,8 @@ class FluidStoragePersistentState(
             if (adjId == primaryId) continue
             val adjStorage = storageMap[adjId] ?: continue
             val adjVariant = if (!adjStorage.isResourceBlank) adjStorage.variant else null
-            val variants = listOfNotNull(newVariant, adjVariant).distinct()
-            if (variants.size <= 1) {
+            val compatible = newVariant == null || adjVariant == null || newVariant.isSameFluid(adjVariant)
+            if (compatible) {
                 primaryId = adjId
                 break
             }
@@ -104,8 +109,8 @@ class FluidStoragePersistentState(
                 if (adjId == primaryId || adjId in idsToMerge) continue
                 val adjStorage = storageMap[adjId] ?: continue
                 val adjVariant = if (!adjStorage.isResourceBlank) adjStorage.variant else null
-                val variants = listOfNotNull(effectiveVariant, adjVariant).distinct()
-                if (variants.size <= 1) {
+                val compatible = effectiveVariant == null || adjVariant == null || effectiveVariant!!.isSameFluid(adjVariant)
+                if (compatible) {
                     totalBucketCap += adjStorage.bucketCapacity
                     totalAmount += adjStorage.amount
                     idsToMerge.add(adjId)
@@ -117,7 +122,7 @@ class FluidStoragePersistentState(
             }
         }
 
-        val mergedVariant = listOfNotNull(effectiveVariant, newVariant).distinct().firstOrNull()
+        val mergedVariant = effectiveVariant ?: newVariant
         val existingData = mergedVariant?.let { TankFluidStorage.ExistingData(it, totalAmount) }
         val mergedStorage = TankFluidStorage(totalBucketCap, existingData).also { it.onChanged = ::setDirty }
 
@@ -163,7 +168,7 @@ class FluidStoragePersistentState(
         val removedShare = allShares[pos] ?: 0L
         val remainingAmount = amount - removedShare
 
-        val removedData = if (variant != null && !variant.isBlank && removedShare > 0) {
+        val removedData = if (variant != null && !variant.isBlankVariant() && removedShare > 0) {
             TankFluidStorage.ExistingData(variant, removedShare)
         } else {
             null
@@ -181,7 +186,7 @@ class FluidStoragePersistentState(
         if (components.size == 1) {
             // 分断なし
             val newBucketCap = computeGroupCapacity(groupPositions, world)
-            val data = if (variant != null && !variant.isBlank && remainingAmount > 0) {
+            val data = if (variant != null && !variant.isBlankVariant() && remainingAmount > 0) {
                 TankFluidStorage.ExistingData(variant, remainingAmount)
             } else {
                 null
@@ -236,7 +241,7 @@ class FluidStoragePersistentState(
     private fun splitIntoComponents(
         components: List<Set<BlockPos>>,
         originalUuid: UUID,
-        variant: net.fabricmc.fabric.api.transfer.v1.fluid.FluidVariant?,
+        variant: PlatformFluidVariant?,
         positionShares: Map<BlockPos, Long>,
         world: ServerLevel?,
     ) {
@@ -247,7 +252,7 @@ class FluidStoragePersistentState(
             val componentAmount = component.sumOf { positionShares[it] ?: 0L }
 
             val newBucketCap = computeGroupCapacity(component, world)
-            val data = if (variant != null && !variant.isBlank && componentAmount > 0) {
+            val data = if (variant != null && !variant.isBlankVariant() && componentAmount > 0) {
                 TankFluidStorage.ExistingData(variant, componentAmount)
             } else {
                 null
@@ -358,7 +363,7 @@ class FluidStoragePersistentState(
         } else {
             defaultBucketCapacity
         }
-        return bucketCap.toLong() * FluidConstants.BUCKET
+        return bucketCap.toLong() * FLUID_BUCKET
     }
 
     private data class PositionalStorageEntry(val pos: BlockPos, val id: UUID) {

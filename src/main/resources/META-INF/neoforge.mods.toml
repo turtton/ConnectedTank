@@ -1,0 +1,32 @@
+modLoader = "kotlinforforge"
+loaderVersion = "[5,)"
+license = "MIT"
+issueTrackerURL = "https://github.com/turtton/ConnectedTank/issues"
+
+[[mods]]
+modId = "connectedtank"
+version = "${version}"
+displayName = "ConnectedTank"
+authors = "turtton"
+description = "Connected fluid tank mod for Minecraft"
+
+[[mixins]]
+config = "connectedtank.mixins.json"
+
+[[mixins]]
+config = "connectedtank.client.mixins.json"
+
+[[dependencies.connectedtank]]
+modId = "neoforge"
+type = "required"
+versionRange = "[${neoforge_version},)"
+ordering = "NONE"
+side = "BOTH"
+
+[[dependencies.connectedtank]]
+modId = "minecraft"
+type = "required"
+versionRange = "[${minecraft_version},)"
+ordering = "NONE"
+side = "BOTH"
+
