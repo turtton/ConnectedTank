@@ -185,7 +185,12 @@ class ConnectedTankBlock(val tier: TankTier, settings: Properties) :
             val interactedAt = ConnectedTankPlacementContext.consumeInteractedAt()?.takeIf {
                 CTBlocks.isConnectedTank(world.getBlockState(it).block)
             }
-            persistentState.addStorage(pos, tankStorage, interactedAt)
+            val sneaking = ConnectedTankPlacementContext.consumeSneaking()
+            if (sneaking && interactedAt == null) {
+                persistentState.addIsolatedStorage(pos, tankStorage)
+            } else {
+                persistentState.addStorage(pos, tankStorage, interactedAt)
+            }
             CTBlocks.syncGroupBlockEntities(world, pos, persistentState)
         }
     }
