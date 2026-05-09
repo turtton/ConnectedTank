@@ -20,7 +20,7 @@ object ConnectedTankPlacementContext {
      */
     fun consumeInteractedAt(): BlockPos? = interactedAt.get()?.also { interactedAt.remove() }
 
-    fun consumeSneaking(): Boolean = sneaking.get() ?: false
+    fun consumeSneaking(): Boolean = (sneaking.get() ?: false).also { sneaking.remove() }
 
     fun clear() {
         interactedAt.remove()

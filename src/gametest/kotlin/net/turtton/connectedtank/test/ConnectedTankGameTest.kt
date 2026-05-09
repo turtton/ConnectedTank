@@ -1223,6 +1223,17 @@ object ConnectedTankGameTest {
             storage2!!.bucketCapacity == CTServerConfig.DEFAULT_BUCKET_CAPACITY,
             Component.literal("Second tank should have single capacity"),
         )
+
+        val blockState1 = context.level.getBlockState(context.absolutePos(pos1))
+        val blockState2 = context.level.getBlockState(context.absolutePos(pos2))
+        context.assertTrue(
+            !blockState1.getValue(ConnectedTankBlock.CONNECTED_EAST),
+            Component.literal("pos1 CONNECTED_EAST should be false"),
+        )
+        context.assertTrue(
+            !blockState2.getValue(ConnectedTankBlock.CONNECTED_WEST),
+            Component.literal("pos2 CONNECTED_WEST should be false"),
+        )
         context.succeed()
     }
 
@@ -1265,6 +1276,29 @@ object ConnectedTankGameTest {
         context.assertTrue(sA !== sMid, Component.literal("Sneaking mid should not connect to A"))
         context.assertTrue(sB !== sMid, Component.literal("Sneaking mid should not connect to B"))
         context.assertTrue(sA !== sB, Component.literal("A and B should remain separate"))
+        context.succeed()
+    }
+
+    //? if fabric {
+    @GameTest
+    //?}
+    fun sneakingDoesNotLeakToNextPlacement(context: GameTestHelper) {
+        val posA = BlockPos(0, 2, 0)
+        val posB = BlockPos(1, 2, 0)
+        val posC = BlockPos(2, 2, 0)
+        context.placeTank(posA)
+        context.placeTank(posB, sneaking = true)
+        context.placeTank(posC, sneaking = false)
+
+        val state = context.getFluidState()
+        val sA = state.getStorage(context.absolutePos(posA))
+        val sB = state.getStorage(context.absolutePos(posB))
+        val sC = state.getStorage(context.absolutePos(posC))
+        context.assertTrue(sA !== sB, Component.literal("B should be isolated from A"))
+        context.assertTrue(
+            sB === sC,
+            Component.literal("C (normal) should connect to B, not stay isolated from stale sneaking"),
+        )
         context.succeed()
     }
 }
