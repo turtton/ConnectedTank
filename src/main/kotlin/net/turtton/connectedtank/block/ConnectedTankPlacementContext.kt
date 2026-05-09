@@ -4,9 +4,14 @@ import net.minecraft.core.BlockPos
 
 object ConnectedTankPlacementContext {
     private val interactedAt = ThreadLocal<BlockPos?>()
+    private val sneaking = ThreadLocal<Boolean>()
 
     fun setInteractedAt(pos: BlockPos) {
         interactedAt.set(pos)
+    }
+
+    fun setSneaking(value: Boolean) {
+        sneaking.set(value)
     }
 
     /**
@@ -15,7 +20,10 @@ object ConnectedTankPlacementContext {
      */
     fun consumeInteractedAt(): BlockPos? = interactedAt.get()?.also { interactedAt.remove() }
 
+    fun consumeSneaking(): Boolean = sneaking.get() ?: false
+
     fun clear() {
         interactedAt.remove()
+        sneaking.remove()
     }
 }

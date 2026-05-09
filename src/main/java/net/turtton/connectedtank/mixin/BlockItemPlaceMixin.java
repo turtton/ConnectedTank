@@ -30,6 +30,8 @@ public class BlockItemPlaceMixin {
             hitPos = context.getClickedPos().relative(context.getClickedFace().getOpposite());
         }
         ConnectedTankPlacementContext.INSTANCE.setInteractedAt(hitPos);
+        var player = context.getPlayer();
+        ConnectedTankPlacementContext.INSTANCE.setSneaking(player != null && player.isSecondaryUseActive());
     }
 
     /**

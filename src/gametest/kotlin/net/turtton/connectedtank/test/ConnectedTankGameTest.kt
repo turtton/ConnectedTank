@@ -36,7 +36,7 @@ object ConnectedTankGameTest {
      * @param tankPos タンクを置きたい相対座標 (y >= 2)
      * @param tier 設置するタンクのティア (デフォルト BASE)
      */
-    private fun GameTestHelper.placeTank(tankPos: BlockPos, tier: TankTier = TankTier.BASE) {
+    private fun GameTestHelper.placeTank(tankPos: BlockPos, tier: TankTier = TankTier.BASE, sneaking: Boolean = false) {
         val basePos = tankPos.below()
         setBlock(basePos, Blocks.STONE)
         val player = makeMockPlayer(GameType.SURVIVAL)
@@ -45,6 +45,7 @@ object ConnectedTankGameTest {
         }
         val stack = ItemStack(item)
         player.setItemInHand(net.minecraft.world.InteractionHand.MAIN_HAND, stack)
+        if (sneaking) player.setShiftKeyDown(true)
         placeAt(player, stack, basePos.below(), Direction.UP)
     }
 
@@ -1191,6 +1192,79 @@ object ConnectedTankGameTest {
             fluidData.amount == FLUID_BUCKET * 5,
             Component.literal("Fluid amount should be 5 buckets but was ${fluidData.amount / FLUID_BUCKET}"),
         )
+        context.succeed()
+    }
+
+    // === スニーク設置分離テスト ===
+
+    //? if fabric {
+    @GameTest
+    //?}
+    fun sneakingPlacementOnNonTankCreatesIsolatedGroup(context: GameTestHelper) {
+        val pos1 = BlockPos(0, 2, 0)
+        val pos2 = BlockPos(1, 2, 0)
+        context.placeTank(pos1)
+        context.placeTank(pos2, sneaking = true)
+
+        val state = context.getFluidState()
+        val storage1 = state.getStorage(context.absolutePos(pos1))
+        val storage2 = state.getStorage(context.absolutePos(pos2))
+        context.assertTrue(storage1 != null, Component.literal("Storage1 should exist"))
+        context.assertTrue(storage2 != null, Component.literal("Storage2 should exist"))
+        context.assertTrue(
+            storage1 !== storage2,
+            Component.literal("Sneaking placement should create isolated group"),
+        )
+        context.assertTrue(
+            storage1!!.bucketCapacity == CTServerConfig.DEFAULT_BUCKET_CAPACITY,
+            Component.literal("First tank should have single capacity"),
+        )
+        context.assertTrue(
+            storage2!!.bucketCapacity == CTServerConfig.DEFAULT_BUCKET_CAPACITY,
+            Component.literal("Second tank should have single capacity"),
+        )
+        context.succeed()
+    }
+
+    //? if fabric {
+    @GameTest
+    //?}
+    fun normalPlacementNextToTankConnects(context: GameTestHelper) {
+        val pos1 = BlockPos(0, 2, 0)
+        val pos2 = BlockPos(1, 2, 0)
+        context.placeTank(pos1)
+        context.placeTank(pos2, sneaking = false)
+
+        val state = context.getFluidState()
+        val storage1 = state.getStorage(context.absolutePos(pos1))
+        val storage2 = state.getStorage(context.absolutePos(pos2))
+        context.assertTrue(storage1 != null, Component.literal("Storage1 should exist"))
+        context.assertTrue(storage2 != null, Component.literal("Storage2 should exist"))
+        context.assertTrue(
+            storage1 === storage2,
+            Component.literal("Normal placement should connect to adjacent tank"),
+        )
+        context.succeed()
+    }
+
+    //? if fabric {
+    @GameTest
+    //?}
+    fun sneakingPlacementBetweenTwoGroupsStaysIsolated(context: GameTestHelper) {
+        val posA = BlockPos(0, 2, 0)
+        val posB = BlockPos(2, 2, 0)
+        val posMid = BlockPos(1, 2, 0)
+        context.placeTank(posA)
+        context.placeTank(posB)
+        context.placeTank(posMid, sneaking = true)
+
+        val state = context.getFluidState()
+        val sA = state.getStorage(context.absolutePos(posA))
+        val sMid = state.getStorage(context.absolutePos(posMid))
+        val sB = state.getStorage(context.absolutePos(posB))
+        context.assertTrue(sA !== sMid, Component.literal("Sneaking mid should not connect to A"))
+        context.assertTrue(sB !== sMid, Component.literal("Sneaking mid should not connect to B"))
+        context.assertTrue(sA !== sB, Component.literal("A and B should remain separate"))
         context.succeed()
     }
 }
