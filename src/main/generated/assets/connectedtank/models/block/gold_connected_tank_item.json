@@ -594,6 +594,7 @@
       ]
     }
   ],
+  "render_type": "minecraft:cutout",
   "textures": {
     "frame": "connectedtank:block/gold_connected_tank_frame",
     "particle": "connectedtank:block/gold_connected_tank_frame",

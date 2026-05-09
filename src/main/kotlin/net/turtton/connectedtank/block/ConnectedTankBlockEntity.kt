@@ -1,8 +1,11 @@
 package net.turtton.connectedtank.block
 
 import java.util.UUID
-import net.fabricmc.fabric.api.transfer.v1.fluid.FluidConstants
+//? if fabric {
 import net.fabricmc.fabric.api.transfer.v1.fluid.FluidVariant
+//?} else if neoforge {
+/*import net.neoforged.neoforge.fluids.FluidStack*/
+//?}
 import net.minecraft.world.level.block.state.BlockState
 import net.minecraft.world.level.block.entity.BlockEntity
 import net.minecraft.nbt.CompoundTag
@@ -15,13 +18,16 @@ import net.minecraft.world.level.storage.ValueOutput
 import net.minecraft.core.UUIDUtil
 import net.minecraft.core.BlockPos
 import net.turtton.connectedtank.config.CTServerConfig
+import net.turtton.connectedtank.fluid.FLUID_BUCKET
+import net.turtton.connectedtank.fluid.PlatformFluidVariant
+import net.turtton.connectedtank.fluid.blankFluidVariant
 import org.joml.Math.clamp
 
 class ConnectedTankBlockEntity(
     pos: BlockPos,
     state: BlockState,
 ) : BlockEntity(CTBlockEntityTypes.CONNECTED_TANK, pos, state) {
-    var fluidVariant: FluidVariant = FluidVariant.blank()
+    var fluidVariant: PlatformFluidVariant = blankFluidVariant()
         private set
     var amount: Long = 0L
         private set
@@ -45,11 +51,11 @@ class ConnectedTankBlockEntity(
         val amountChanged = amount != storage.amount
         fluidVariant = storage.variant
         amount = storage.amount
-        capacity = storage.bucketCapacity.toLong() * FluidConstants.BUCKET
+        capacity = storage.bucketCapacity.toLong() * FLUID_BUCKET
         groupId = newGroupId ?: groupId
         val posCapacity = (level?.getBlockState(worldPosition)?.block as? ConnectedTankBlock)?.tier?.bucketCapacity
             ?: CTServerConfig.instance.tankBucketCapacity
-        val posCapacityDroplets = posCapacity.toLong() * FluidConstants.BUCKET
+        val posCapacityDroplets = posCapacity.toLong() * FLUID_BUCKET
         localFillLevel = if (posCapacityDroplets > 0) clamp(0f, 1f, localShare.toFloat() / posCapacityDroplets) else 0f
         if (variantChanged || amountChanged) {
             waveStartTick = level?.gameTime ?: 0L
@@ -62,7 +68,11 @@ class ConnectedTankBlockEntity(
     }
 
     override fun loadAdditional(view: ValueInput) {
+        //? if fabric {
         fluidVariant = view.read("variant", FluidVariant.CODEC).orElse(FluidVariant.blank())
+        //?} else if neoforge {
+        /*fluidVariant = view.read("variant", FluidStack.CODEC).orElse(FluidStack.EMPTY)*/
+        //?}
         amount = view.getLongOr("amount", 0L)
         capacity = view.getLongOr("capacity", 0L)
         waveStartTick = view.getLongOr("waveStartTick", 0L)
@@ -71,7 +81,11 @@ class ConnectedTankBlockEntity(
     }
 
     override fun saveAdditional(view: ValueOutput) {
+        //? if fabric {
         view.store("variant", FluidVariant.CODEC, fluidVariant)
+        //?} else if neoforge {
+        /*view.store("variant", FluidStack.CODEC, fluidVariant)*/
+        //?}
         view.putLong("amount", amount)
         view.putLong("capacity", capacity)
         view.putLong("waveStartTick", waveStartTick)

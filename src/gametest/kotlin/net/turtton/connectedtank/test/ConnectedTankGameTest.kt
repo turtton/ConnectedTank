@@ -1,9 +1,8 @@
 package net.turtton.connectedtank.test
 
+//? if fabric {
 import net.fabricmc.fabric.api.gametest.v1.GameTest
-import net.fabricmc.fabric.api.transfer.v1.fluid.FluidConstants
-import net.fabricmc.fabric.api.transfer.v1.fluid.FluidVariant
-import net.fabricmc.fabric.api.transfer.v1.transaction.Transaction
+//?}
 import net.minecraft.world.entity.EntityType
 import net.minecraft.world.entity.item.ItemEntity
 import net.minecraft.world.level.block.Blocks
@@ -21,6 +20,10 @@ import net.turtton.connectedtank.block.TankFluidStorage
 import net.turtton.connectedtank.block.TankTier
 import net.turtton.connectedtank.component.CTDataComponentTypes
 import net.turtton.connectedtank.config.CTServerConfig
+import net.turtton.connectedtank.fluid.FLUID_BUCKET
+import net.turtton.connectedtank.fluid.fluidVariantOf
+import net.turtton.connectedtank.fluid.insertFluid
+import net.turtton.connectedtank.fluid.isSameFluid
 import net.turtton.connectedtank.item.CTItems
 import net.turtton.connectedtank.world.FluidStoragePersistentState
 
@@ -41,10 +44,13 @@ object ConnectedTankGameTest {
             (CTBlocks.ALL_TANKS[CTItems.ALL_TANK_ITEMS.indexOf(it)] as? ConnectedTankBlock)?.tier == tier
         }
         val stack = ItemStack(item)
+        player.setItemInHand(net.minecraft.world.InteractionHand.MAIN_HAND, stack)
         placeAt(player, stack, basePos.below(), Direction.UP)
     }
 
+    //? if fabric {
     @GameTest
+    //?}
     fun placeSingleTank(context: GameTestHelper) {
         val tankPos = BlockPos(0, 2, 0)
         context.placeTank(tankPos)
@@ -60,7 +66,9 @@ object ConnectedTankGameTest {
         context.succeed()
     }
 
+    //? if fabric {
     @GameTest
+    //?}
     fun placeAdjacentTanksShareStorage(context: GameTestHelper) {
         val pos1 = BlockPos(0, 2, 0)
         val pos2 = BlockPos(1, 2, 0)
@@ -83,7 +91,9 @@ object ConnectedTankGameTest {
         context.succeed()
     }
 
+    //? if fabric {
     @GameTest
+    //?}
     fun removeTankFromCombinedReducesCapacity(context: GameTestHelper) {
         val pos1 = BlockPos(0, 2, 0)
         val pos2 = BlockPos(1, 2, 0)
@@ -105,7 +115,9 @@ object ConnectedTankGameTest {
         context.succeed()
     }
 
+    //? if fabric {
     @GameTest
+    //?}
     fun fluidInsertionPersists(context: GameTestHelper) {
         val tankPos = BlockPos(0, 2, 0)
         context.placeTank(tankPos)
@@ -113,22 +125,17 @@ object ConnectedTankGameTest {
         val state = context.getFluidState()
         val storage = state.getStorage(context.absolutePos(tankPos))!!
 
-        val water = FluidVariant.of(Fluids.WATER)
-        Transaction.openOuter().use { transaction ->
-            val inserted = storage.insert(water, FluidConstants.BUCKET, transaction)
-            context.assertTrue(
-                inserted == FluidConstants.BUCKET,
-                Component.literal("Should insert exactly 1 bucket"),
-            )
-            transaction.commit()
-        }
+        val water = fluidVariantOf(Fluids.WATER)
+        insertFluid(storage, water, FLUID_BUCKET)
 
-        context.assertTrue(storage.amount == FluidConstants.BUCKET, Component.literal("Storage should contain 1 bucket"))
-        context.assertTrue(storage.variant == water, Component.literal("Storage should contain water"))
+        context.assertTrue(storage.amount == FLUID_BUCKET, Component.literal("Storage should contain 1 bucket"))
+        context.assertTrue(storage.variant.isSameFluid(water), Component.literal("Storage should contain water"))
         context.succeed()
     }
 
+    //? if fabric {
     @GameTest
+    //?}
     fun disconnectedTanksHaveSeparateStorage(context: GameTestHelper) {
         val pos1 = BlockPos(0, 2, 0)
         val pos2 = BlockPos(2, 2, 0) // 1 block gap
@@ -147,7 +154,9 @@ object ConnectedTankGameTest {
         context.succeed()
     }
 
+    //? if fabric {
     @GameTest
+    //?}
     fun removeAllTanksRemovesStorage(context: GameTestHelper) {
         val tankPos = BlockPos(0, 2, 0)
         context.placeTank(tankPos)
@@ -161,7 +170,9 @@ object ConnectedTankGameTest {
         context.succeed()
     }
 
+    //? if fabric {
     @GameTest
+    //?}
     fun placesBetweenTwoGroupsMergesThem(context: GameTestHelper) {
         // [Group A] [gap] [Group B] → [Group A] [New Tank] [Group B] → 1 group
         val posA = BlockPos(0, 2, 0)
@@ -190,7 +201,9 @@ object ConnectedTankGameTest {
         context.succeed()
     }
 
+    //? if fabric {
     @GameTest
+    //?}
     fun mergeGroupsPreservesFluidAmount(context: GameTestHelper) {
         val posA = BlockPos(0, 2, 0)
         val posB = BlockPos(2, 2, 0)
@@ -198,32 +211,28 @@ object ConnectedTankGameTest {
         context.placeTank(posB)
 
         val state = context.getFluidState()
-        val water = FluidVariant.of(Fluids.WATER)
+        val water = fluidVariantOf(Fluids.WATER)
 
         val storageA = state.getStorage(context.absolutePos(posA))!!
-        Transaction.openOuter().use { transaction ->
-            storageA.insert(water, FluidConstants.BUCKET * 2, transaction)
-            transaction.commit()
-        }
+        insertFluid(storageA, water, FLUID_BUCKET * 2)
         val storageB = state.getStorage(context.absolutePos(posB))!!
-        Transaction.openOuter().use { transaction ->
-            storageB.insert(water, FluidConstants.BUCKET * 3, transaction)
-            transaction.commit()
-        }
+        insertFluid(storageB, water, FLUID_BUCKET * 3)
 
         val posMid = BlockPos(1, 2, 0)
         context.placeTank(posMid)
 
         val merged = state.getStorage(context.absolutePos(posA))!!
         context.assertTrue(
-            merged.amount == FluidConstants.BUCKET * 5,
-            Component.literal("Merged amount should be 5 buckets but was ${merged.amount / FluidConstants.BUCKET}"),
+            merged.amount == FLUID_BUCKET * 5,
+            Component.literal("Merged amount should be 5 buckets but was ${merged.amount / FLUID_BUCKET}"),
         )
-        context.assertTrue(merged.variant == water, Component.literal("Merged variant should be water"))
+        context.assertTrue(merged.variant.isSameFluid(water), Component.literal("Merged variant should be water"))
         context.succeed()
     }
 
+    //? if fabric {
     @GameTest
+    //?}
     fun incompatibleGroupsConnectToPriority(context: GameTestHelper) {
         // 水タンクと溶岩タンクの間に空タンクを置くと、座標優先度で水側に接続
         val posA = BlockPos(0, 2, 0)
@@ -231,18 +240,15 @@ object ConnectedTankGameTest {
         context.placeTank(posA)
 
         val state = context.getFluidState()
-        val water = FluidVariant.of(Fluids.WATER)
-        val lava = FluidVariant.of(Fluids.LAVA)
+        val water = fluidVariantOf(Fluids.WATER)
+        val lava = fluidVariantOf(Fluids.LAVA)
 
         val storageA = state.getStorage(context.absolutePos(posA))!!
-        Transaction.openOuter().use { transaction ->
-            storageA.insert(water, FluidConstants.BUCKET, transaction)
-            transaction.commit()
-        }
+        insertFluid(storageA, water, FLUID_BUCKET)
 
         val lavaStorage = TankFluidStorage(
             CTServerConfig.DEFAULT_BUCKET_CAPACITY,
-            TankFluidStorage.ExistingData(lava, FluidConstants.BUCKET),
+            TankFluidStorage.ExistingData(lava, FLUID_BUCKET),
         )
         state.addStorage(context.absolutePos(posB), lavaStorage)
 
@@ -255,12 +261,14 @@ object ConnectedTankGameTest {
         // 座標優先度: posA(0,2,0) < posB(2,2,0) → 空タンクは水グループに接続
         context.assertTrue(sA === sMid, Component.literal("Empty tank should connect to water group (higher priority)"))
         context.assertTrue(sB !== sMid, Component.literal("Lava group should remain separate"))
-        context.assertTrue(sA!!.variant == water, Component.literal("A should still have water"))
-        context.assertTrue(sB!!.variant == lava, Component.literal("B should still have lava"))
+        context.assertTrue(sA!!.variant.isSameFluid(water), Component.literal("A should still have water"))
+        context.assertTrue(sB!!.variant.isSameFluid(lava), Component.literal("B should still have lava"))
         context.succeed()
     }
 
+    //? if fabric {
     @GameTest
+    //?}
     fun differentFluidTanksDoNotMerge(context: GameTestHelper) {
         val pos1 = BlockPos(0, 2, 0)
         context.placeTank(pos1)
@@ -268,25 +276,22 @@ object ConnectedTankGameTest {
         val state = context.getFluidState()
         val storage1 = state.getStorage(context.absolutePos(pos1))!!
 
-        val water = FluidVariant.of(Fluids.WATER)
-        Transaction.openOuter().use { transaction ->
-            storage1.insert(water, FluidConstants.BUCKET, transaction)
-            transaction.commit()
-        }
+        val water = fluidVariantOf(Fluids.WATER)
+        insertFluid(storage1, water, FLUID_BUCKET)
 
         val pos2 = BlockPos(1, 2, 0)
         val lavaStorage = TankFluidStorage(
             CTServerConfig.DEFAULT_BUCKET_CAPACITY,
-            TankFluidStorage.ExistingData(FluidVariant.of(Fluids.LAVA), FluidConstants.BUCKET),
+            TankFluidStorage.ExistingData(fluidVariantOf(Fluids.LAVA), FLUID_BUCKET),
         )
         state.addStorage(context.absolutePos(pos2), lavaStorage)
 
         val s1 = state.getStorage(context.absolutePos(pos1))
         val s2 = state.getStorage(context.absolutePos(pos2))
         context.assertTrue(s1 !== s2, Component.literal("Tanks with different fluids should not merge"))
-        context.assertTrue(s1!!.variant == water, Component.literal("First tank should still have water"))
+        context.assertTrue(s1!!.variant.isSameFluid(water), Component.literal("First tank should still have water"))
         context.assertTrue(
-            s2!!.variant == FluidVariant.of(Fluids.LAVA),
+            s2!!.variant.isSameFluid(fluidVariantOf(Fluids.LAVA)),
             Component.literal("Second tank should have lava"),
         )
         context.succeed()
@@ -294,7 +299,9 @@ object ConnectedTankGameTest {
 
     // === 座標優先度・interactedAt テスト ===
 
+    //? if fabric {
     @GameTest
+    //?}
     fun interactedAtConnectsToSpecifiedGroup(context: GameTestHelper) {
         // 水グループと溶岩グループの間で、interactedAt で溶岩側を指定
         val posA = BlockPos(0, 2, 0)
@@ -302,18 +309,15 @@ object ConnectedTankGameTest {
         context.placeTank(posA)
 
         val state = context.getFluidState()
-        val water = FluidVariant.of(Fluids.WATER)
-        val lava = FluidVariant.of(Fluids.LAVA)
+        val water = fluidVariantOf(Fluids.WATER)
+        val lava = fluidVariantOf(Fluids.LAVA)
 
         val storageA = state.getStorage(context.absolutePos(posA))!!
-        Transaction.openOuter().use { transaction ->
-            storageA.insert(water, FluidConstants.BUCKET, transaction)
-            transaction.commit()
-        }
+        insertFluid(storageA, water, FLUID_BUCKET)
 
         val lavaStorage = TankFluidStorage(
             CTServerConfig.DEFAULT_BUCKET_CAPACITY,
-            TankFluidStorage.ExistingData(lava, FluidConstants.BUCKET),
+            TankFluidStorage.ExistingData(lava, FLUID_BUCKET),
         )
         state.addStorage(context.absolutePos(posB), lavaStorage)
 
@@ -327,12 +331,14 @@ object ConnectedTankGameTest {
         val sB = state.getStorage(context.absolutePos(posB))
         context.assertTrue(sB === sMid, Component.literal("Middle should connect to lava group via interactedAt"))
         context.assertTrue(sA !== sMid, Component.literal("Water group should remain separate"))
-        context.assertTrue(sA!!.variant == water, Component.literal("A should still have water"))
-        context.assertTrue(sB!!.variant == lava, Component.literal("B+Mid should have lava"))
+        context.assertTrue(sA!!.variant.isSameFluid(water), Component.literal("A should still have water"))
+        context.assertTrue(sB!!.variant.isSameFluid(lava), Component.literal("B+Mid should have lava"))
         context.succeed()
     }
 
+    //? if fabric {
     @GameTest
+    //?}
     fun interactedAtDoesNotMergeOtherGroups(context: GameTestHelper) {
         // interactedAt 指定時、他の互換グループはマージしない
         val posA = BlockPos(0, 2, 0)
@@ -358,7 +364,9 @@ object ConnectedTankGameTest {
         context.succeed()
     }
 
+    //? if fabric {
     @GameTest
+    //?}
     fun coordinatePrioritySelectsLowestCoordinate(context: GameTestHelper) {
         // Y が低い方が優先される
         val posBottom = BlockPos(1, 2, 0)
@@ -367,19 +375,13 @@ object ConnectedTankGameTest {
         context.placeTank(posTop)
 
         val state = context.getFluidState()
-        val water = FluidVariant.of(Fluids.WATER)
-        val lava = FluidVariant.of(Fluids.LAVA)
+        val water = fluidVariantOf(Fluids.WATER)
+        val lava = fluidVariantOf(Fluids.LAVA)
 
         val storageBottom = state.getStorage(context.absolutePos(posBottom))!!
-        Transaction.openOuter().use { tx ->
-            storageBottom.insert(water, FluidConstants.BUCKET, tx)
-            tx.commit()
-        }
+        insertFluid(storageBottom, water, FLUID_BUCKET)
         val storageTop = state.getStorage(context.absolutePos(posTop))!!
-        Transaction.openOuter().use { tx ->
-            storageTop.insert(lava, FluidConstants.BUCKET, tx)
-            tx.commit()
-        }
+        insertFluid(storageTop, lava, FLUID_BUCKET)
 
         // 中間に空タンクを設置 → Y 昇順で posBottom が優先
         val posMid = BlockPos(1, 3, 0)
@@ -395,7 +397,9 @@ object ConnectedTankGameTest {
 
     // === 分断検出テスト ===
 
+    //? if fabric {
     @GameTest
+    //?}
     fun breakMiddleOfThreeSplitsIntoTwoGroups(context: GameTestHelper) {
         val posL = BlockPos(0, 2, 0)
         val posM = BlockPos(1, 2, 0)
@@ -429,7 +433,9 @@ object ConnectedTankGameTest {
         context.succeed()
     }
 
+    //? if fabric {
     @GameTest
+    //?}
     fun breakCornerOfLShapeSplitsIntoTwo(context: GameTestHelper) {
         // L 字: (0,2,0) - (1,2,0) - (1,2,1)
         val posA = BlockPos(0, 2, 0)
@@ -450,7 +456,9 @@ object ConnectedTankGameTest {
         context.succeed()
     }
 
+    //? if fabric {
     @GameTest
+    //?}
     fun breakOneFrom2x2KeepsGroupConnected(context: GameTestHelper) {
         // 2x2: (0,2,0) (1,2,0) (0,2,1) (1,2,1) → 1 つ破壊 → 残り 3 つは連結
         val pos00 = BlockPos(0, 2, 0)
@@ -480,7 +488,9 @@ object ConnectedTankGameTest {
 
     // === 液体均等分配テスト ===
 
+    //? if fabric {
     @GameTest
+    //?}
     fun splitEvenFluidDistribution(context: GameTestHelper) {
         // 30 バケツ / 3 タンク → 破壊タンク 10, 残り各 10
         val posL = BlockPos(0, 2, 0)
@@ -491,35 +501,34 @@ object ConnectedTankGameTest {
         context.placeTank(posR)
 
         val state = context.getFluidState()
-        val water = FluidVariant.of(Fluids.WATER)
+        val water = fluidVariantOf(Fluids.WATER)
         val storage = state.getStorage(context.absolutePos(posL))!!
-        Transaction.openOuter().use { tx ->
-            storage.insert(water, FluidConstants.BUCKET * 30, tx)
-            tx.commit()
-        }
+        insertFluid(storage, water, FLUID_BUCKET * 30)
 
         val removedData = state.removeStorage(context.absolutePos(posM), context.level)
 
         context.assertTrue(removedData != null, Component.literal("Removed data should not be null"))
         context.assertTrue(
-            removedData!!.amount == FluidConstants.BUCKET * 10,
-            Component.literal("Removed share should be 10 buckets but was ${removedData.amount / FluidConstants.BUCKET}"),
+            removedData!!.amount == FLUID_BUCKET * 10,
+            Component.literal("Removed share should be 10 buckets but was ${removedData.amount / FLUID_BUCKET}"),
         )
 
         val sL = state.getStorage(context.absolutePos(posL))
         val sR = state.getStorage(context.absolutePos(posR))
         context.assertTrue(
-            sL!!.amount == FluidConstants.BUCKET * 10,
-            Component.literal("Left should have 10 buckets but was ${sL.amount / FluidConstants.BUCKET}"),
+            sL!!.amount == FLUID_BUCKET * 10,
+            Component.literal("Left should have 10 buckets but was ${sL.amount / FLUID_BUCKET}"),
         )
         context.assertTrue(
-            sR!!.amount == FluidConstants.BUCKET * 10,
-            Component.literal("Right should have 10 buckets but was ${sR.amount / FluidConstants.BUCKET}"),
+            sR!!.amount == FLUID_BUCKET * 10,
+            Component.literal("Right should have 10 buckets but was ${sR.amount / FLUID_BUCKET}"),
         )
         context.succeed()
     }
 
+    //? if fabric {
     @GameTest
+    //?}
     fun splitUnevenFluidDistribution(context: GameTestHelper) {
         // droplet 単位で端数が出るケース: (10 buckets + 2 droplets) / 3 tanks
         val posL = BlockPos(0, 2, 0)
@@ -530,43 +539,44 @@ object ConnectedTankGameTest {
         context.placeTank(posR)
 
         val state = context.getFluidState()
-        val water = FluidVariant.of(Fluids.WATER)
-        val totalAmount = FluidConstants.BUCKET * 10 + 2 // 810002 droplets
+        val water = fluidVariantOf(Fluids.WATER)
+        val totalAmount = FLUID_BUCKET * 10 + 2
         val storage = state.getStorage(context.absolutePos(posL))!!
-        Transaction.openOuter().use { tx ->
-            storage.insert(water, totalAmount, tx)
-            tx.commit()
-        }
+        insertFluid(storage, water, totalAmount)
 
         val removedData = state.removeStorage(context.absolutePos(posM), context.level)
 
         // 位置ベース分配: 同一 Y レベル・同一ティアなので累積丸めで按分
-        // 810002 * 2/3 = 540001 (cumulative for posM) - 270000 (posL) = 270001
-        val expectedRemoved = 270001L
+        val expectedPosLCum = totalAmount * 1 / 3
+        val expectedPosMCum = totalAmount * 2 / 3
+        val expectedRemoved = expectedPosMCum - expectedPosLCum
         context.assertTrue(removedData != null, Component.literal("Removed data should not be null"))
         context.assertTrue(
             removedData!!.amount == expectedRemoved,
             Component.literal("Removed share should be $expectedRemoved but was ${removedData.amount}"),
         )
 
-        // remaining = 810002 - 270001 = 540001, 2 tanks (同一 Y レベル)
-        // 累積丸め: posL = 270000, posR = 270001 (または逆)
+        val expectedRemaining = totalAmount - expectedRemoved
         val sL = state.getStorage(context.absolutePos(posL))
         val sR = state.getStorage(context.absolutePos(posR))
         val leftAmt = sL!!.amount
         val rightAmt = sR!!.amount
         context.assertTrue(
-            leftAmt + rightAmt == 540001L,
-            Component.literal("Total remaining should be 540001 but was ${leftAmt + rightAmt}"),
+            leftAmt + rightAmt == expectedRemaining,
+            Component.literal("Total remaining should be $expectedRemaining but was ${leftAmt + rightAmt}"),
         )
+        val expectedMin = expectedRemaining / 2
+        val expectedMax = expectedRemaining - expectedMin
         context.assertTrue(
-            (leftAmt == 270001L && rightAmt == 270000L) || (leftAmt == 270000L && rightAmt == 270001L),
-            Component.literal("Amounts should be 270001+270000 but were $leftAmt+$rightAmt"),
+            (leftAmt == expectedMax && rightAmt == expectedMin) || (leftAmt == expectedMin && rightAmt == expectedMax),
+            Component.literal("Amounts should be $expectedMax+$expectedMin but were $leftAmt+$rightAmt"),
         )
         context.succeed()
     }
 
+    //? if fabric {
     @GameTest
+    //?}
     fun noSplitFluidReduction(context: GameTestHelper) {
         // 2 タンクから 1 つ破壊 (分断なし: 隣接なので分断にはならない)
         val pos1 = BlockPos(0, 2, 0)
@@ -575,55 +585,53 @@ object ConnectedTankGameTest {
         context.placeTank(pos2)
 
         val state = context.getFluidState()
-        val water = FluidVariant.of(Fluids.WATER)
+        val water = fluidVariantOf(Fluids.WATER)
         val storage = state.getStorage(context.absolutePos(pos1))!!
-        Transaction.openOuter().use { tx ->
-            storage.insert(water, FluidConstants.BUCKET * 20, tx)
-            tx.commit()
-        }
+        insertFluid(storage, water, FLUID_BUCKET * 20)
 
         val removedData = state.removeStorage(context.absolutePos(pos2), context.level)
 
         context.assertTrue(removedData != null, Component.literal("Removed data should not be null"))
         context.assertTrue(
-            removedData!!.amount == FluidConstants.BUCKET * 10,
-            Component.literal("Removed share should be 10 buckets but was ${removedData.amount / FluidConstants.BUCKET}"),
+            removedData!!.amount == FLUID_BUCKET * 10,
+            Component.literal("Removed share should be 10 buckets but was ${removedData.amount / FLUID_BUCKET}"),
         )
 
         val remaining = state.getStorage(context.absolutePos(pos1))
         context.assertTrue(
-            remaining!!.amount == FluidConstants.BUCKET * 10,
-            Component.literal("Remaining should have 10 buckets but was ${remaining.amount / FluidConstants.BUCKET}"),
+            remaining!!.amount == FLUID_BUCKET * 10,
+            Component.literal("Remaining should have 10 buckets but was ${remaining.amount / FLUID_BUCKET}"),
         )
         context.succeed()
     }
 
     // === DataComponent テスト ===
 
+    //? if fabric {
     @GameTest
+    //?}
     fun removeStorageReturnsFluidData(context: GameTestHelper) {
         val tankPos = BlockPos(0, 2, 0)
         context.placeTank(tankPos)
 
         val state = context.getFluidState()
-        val water = FluidVariant.of(Fluids.WATER)
+        val water = fluidVariantOf(Fluids.WATER)
         val storage = state.getStorage(context.absolutePos(tankPos))!!
-        Transaction.openOuter().use { tx ->
-            storage.insert(water, FluidConstants.BUCKET * 5, tx)
-            tx.commit()
-        }
+        insertFluid(storage, water, FLUID_BUCKET * 5)
 
         val result = state.removeStorage(context.absolutePos(tankPos), context.level)
         context.assertTrue(result != null, Component.literal("Should return ExistingData"))
-        context.assertTrue(result!!.variant == water, Component.literal("Variant should be water"))
+        context.assertTrue(result!!.variant.isSameFluid(water), Component.literal("Variant should be water"))
         context.assertTrue(
-            result.amount == FluidConstants.BUCKET * 5,
-            Component.literal("Amount should be 5 buckets but was ${result.amount / FluidConstants.BUCKET}"),
+            result.amount == FLUID_BUCKET * 5,
+            Component.literal("Amount should be 5 buckets but was ${result.amount / FLUID_BUCKET}"),
         )
         context.succeed()
     }
 
+    //? if fabric {
     @GameTest
+    //?}
     fun removeEmptyStorageReturnsNull(context: GameTestHelper) {
         val tankPos = BlockPos(0, 2, 0)
         context.placeTank(tankPos)
@@ -634,11 +642,13 @@ object ConnectedTankGameTest {
         context.succeed()
     }
 
+    //? if fabric {
     @GameTest
+    //?}
     fun placeFluidTankRestoresStorage(context: GameTestHelper) {
         val tankPos = BlockPos(0, 2, 0)
-        val water = FluidVariant.of(Fluids.WATER)
-        val fluidData = TankFluidStorage.ExistingData(water, FluidConstants.BUCKET * 5)
+        val water = fluidVariantOf(Fluids.WATER)
+        val fluidData = TankFluidStorage.ExistingData(water, FLUID_BUCKET * 5)
 
         // DataComponent 付きタンクを直接 addStorage で追加
         val state = context.getFluidState()
@@ -647,41 +657,40 @@ object ConnectedTankGameTest {
 
         val restored = state.getStorage(context.absolutePos(tankPos))
         context.assertTrue(restored != null, Component.literal("Restored storage should exist"))
-        context.assertTrue(restored!!.variant == water, Component.literal("Variant should be water"))
+        context.assertTrue(restored!!.variant.isSameFluid(water), Component.literal("Variant should be water"))
         context.assertTrue(
-            restored.amount == FluidConstants.BUCKET * 5,
-            Component.literal("Amount should be 5 buckets but was ${restored.amount / FluidConstants.BUCKET}"),
+            restored.amount == FLUID_BUCKET * 5,
+            Component.literal("Amount should be 5 buckets but was ${restored.amount / FLUID_BUCKET}"),
         )
         context.succeed()
     }
 
+    //? if fabric {
     @GameTest
+    //?}
     fun placeFluidTankMergesWithAdjacent(context: GameTestHelper) {
         // 隣に水タンクがある状態で、水入りタンクを設置 → 液体量がマージされる
         val pos1 = BlockPos(0, 2, 0)
         context.placeTank(pos1)
 
         val state = context.getFluidState()
-        val water = FluidVariant.of(Fluids.WATER)
+        val water = fluidVariantOf(Fluids.WATER)
         val storage1 = state.getStorage(context.absolutePos(pos1))!!
-        Transaction.openOuter().use { tx ->
-            storage1.insert(water, FluidConstants.BUCKET * 3, tx)
-            tx.commit()
-        }
+        insertFluid(storage1, water, FLUID_BUCKET * 3)
 
         // 水 2 バケツ入りタンクを隣に追加
         val pos2 = BlockPos(1, 2, 0)
-        val fluidData = TankFluidStorage.ExistingData(water, FluidConstants.BUCKET * 2)
+        val fluidData = TankFluidStorage.ExistingData(water, FLUID_BUCKET * 2)
         val newTankStorage = TankFluidStorage(fluid = fluidData)
         state.addStorage(context.absolutePos(pos2), newTankStorage)
 
         val merged = state.getStorage(context.absolutePos(pos1))
         context.assertTrue(merged != null, Component.literal("Merged storage should exist"))
         context.assertTrue(
-            merged!!.amount == FluidConstants.BUCKET * 5,
-            Component.literal("Merged amount should be 5 buckets but was ${merged.amount / FluidConstants.BUCKET}"),
+            merged!!.amount == FLUID_BUCKET * 5,
+            Component.literal("Merged amount should be 5 buckets but was ${merged.amount / FLUID_BUCKET}"),
         )
-        context.assertTrue(merged.variant == water, Component.literal("Variant should be water"))
+        context.assertTrue(merged.variant.isSameFluid(water), Component.literal("Variant should be water"))
         context.succeed()
     }
 
@@ -702,24 +711,23 @@ object ConnectedTankGameTest {
         return positions
     }
 
+    //? if fabric {
     @GameTest
+    //?}
     fun verticalStackBottomGetsMoreFluid(context: GameTestHelper) {
         // 3 段積み: 48 バケツ (50%) → 下=32, 中=16, 上=0
         val (posBottom, posMid, posTop) = context.placeVerticalTanks(2, 3, 4)
 
         val state = context.getFluidState()
-        val water = FluidVariant.of(Fluids.WATER)
+        val water = fluidVariantOf(Fluids.WATER)
         val storage = state.getStorage(context.absolutePos(posBottom))!!
         val bucketCap = CTServerConfig.DEFAULT_BUCKET_CAPACITY.toLong()
-        val totalAmount = bucketCap * FluidConstants.BUCKET / 2 * 3 // 50% of total capacity
-        Transaction.openOuter().use { tx ->
-            storage.insert(water, totalAmount, tx)
-            tx.commit()
-        }
+        val totalAmount = bucketCap * FLUID_BUCKET / 2 * 3 // 50% of total capacity
+        insertFluid(storage, water, totalAmount)
 
         // 中間タンクを破壊 → 位置ベースで分配
         val removedData = state.removeStorage(context.absolutePos(posMid), context.level)
-        val expectedMid = (bucketCap / 2) * FluidConstants.BUCKET
+        val expectedMid = (bucketCap / 2) * FLUID_BUCKET
         context.assertTrue(
             removedData != null,
             Component.literal("Removed data should not be null"),
@@ -731,7 +739,7 @@ object ConnectedTankGameTest {
 
         val sBottom = state.getStorage(context.absolutePos(posBottom))
         val sTop = state.getStorage(context.absolutePos(posTop))
-        val expectedBottom = bucketCap * FluidConstants.BUCKET
+        val expectedBottom = bucketCap * FLUID_BUCKET
         context.assertTrue(
             sBottom!!.amount == expectedBottom,
             Component.literal("Bottom should have $expectedBottom but was ${sBottom.amount}"),
@@ -743,24 +751,23 @@ object ConnectedTankGameTest {
         context.succeed()
     }
 
+    //? if fabric {
     @GameTest
+    //?}
     fun verticalStackBreakBottomRedistributes(context: GameTestHelper) {
         // 3 段積み: 48 バケツ → 下を破壊
         // 下=32, 中=16, 上=0 → 下の 32 バケツがドロップ, 残り 16 バケツは中と上に再分配
         val (posBottom, posMid, posTop) = context.placeVerticalTanks(2, 3, 4)
 
         val state = context.getFluidState()
-        val water = FluidVariant.of(Fluids.WATER)
+        val water = fluidVariantOf(Fluids.WATER)
         val storage = state.getStorage(context.absolutePos(posBottom))!!
         val bucketCap = CTServerConfig.DEFAULT_BUCKET_CAPACITY.toLong()
-        val totalAmount = bucketCap * FluidConstants.BUCKET / 2 * 3
-        Transaction.openOuter().use { tx ->
-            storage.insert(water, totalAmount, tx)
-            tx.commit()
-        }
+        val totalAmount = bucketCap * FLUID_BUCKET / 2 * 3
+        insertFluid(storage, water, totalAmount)
 
         val removedData = state.removeStorage(context.absolutePos(posBottom), context.level)
-        val expectedBottom = bucketCap * FluidConstants.BUCKET
+        val expectedBottom = bucketCap * FLUID_BUCKET
         context.assertTrue(
             removedData != null,
             Component.literal("Removed data should not be null"),
@@ -777,7 +784,7 @@ object ConnectedTankGameTest {
             sMid === sTop,
             Component.literal("Mid and Top should share the same storage"),
         )
-        val expectedRemaining = (bucketCap / 2) * FluidConstants.BUCKET
+        val expectedRemaining = (bucketCap / 2) * FLUID_BUCKET
         context.assertTrue(
             sMid!!.amount == expectedRemaining,
             Component.literal("Remaining group should have $expectedRemaining but was ${sMid.amount}"),
@@ -785,20 +792,19 @@ object ConnectedTankGameTest {
         context.succeed()
     }
 
+    //? if fabric {
     @GameTest
+    //?}
     fun verticalStackEmptyTopGetsNothing(context: GameTestHelper) {
         // 2 段積み: 容量の 30% → 下のみに入り、上を破壊しても液体なし
         val (posBottom, posTop) = context.placeVerticalTanks(2, 3)
 
         val state = context.getFluidState()
-        val water = FluidVariant.of(Fluids.WATER)
+        val water = fluidVariantOf(Fluids.WATER)
         val storage = state.getStorage(context.absolutePos(posBottom))!!
         val bucketCap = CTServerConfig.DEFAULT_BUCKET_CAPACITY.toLong()
-        val amount = bucketCap * FluidConstants.BUCKET * 30 / 100 // 30% of single tank
-        Transaction.openOuter().use { tx ->
-            storage.insert(water, amount, tx)
-            tx.commit()
-        }
+        val amount = bucketCap * FLUID_BUCKET * 30 / 100 // 30% of single tank
+        insertFluid(storage, water, amount)
 
         val removedData = state.removeStorage(context.absolutePos(posTop), context.level)
         context.assertTrue(
@@ -816,7 +822,9 @@ object ConnectedTankGameTest {
 
     // === ティア別容量テスト ===
 
+    //? if fabric {
     @GameTest
+    //?}
     fun tierCapacityMatchesMultiplier(context: GameTestHelper) {
         val tankPos = BlockPos(0, 2, 0)
         context.placeTank(tankPos, TankTier.IRON)
@@ -832,7 +840,9 @@ object ConnectedTankGameTest {
         context.succeed()
     }
 
+    //? if fabric {
     @GameTest
+    //?}
     fun differentTiersConnect(context: GameTestHelper) {
         val pos1 = BlockPos(0, 2, 0)
         val pos2 = BlockPos(1, 2, 0)
@@ -859,18 +869,17 @@ object ConnectedTankGameTest {
 
     // === getPickStack テスト ===
 
+    //? if fabric {
     @GameTest
+    //?}
     fun pickStackWithIncludeDataContainsFluid(context: GameTestHelper) {
         val tankPos = BlockPos(0, 2, 0)
         context.placeTank(tankPos)
 
         val state = context.getFluidState()
-        val water = FluidVariant.of(Fluids.WATER)
+        val water = fluidVariantOf(Fluids.WATER)
         val storage = state.getStorage(context.absolutePos(tankPos))!!
-        Transaction.openOuter().use { tx ->
-            storage.insert(water, FluidConstants.BUCKET * 5, tx)
-            tx.commit()
-        }
+        insertFluid(storage, water, FLUID_BUCKET * 5)
 
         val world = context.level
         val absPos = context.absolutePos(tankPos)
@@ -880,26 +889,25 @@ object ConnectedTankGameTest {
 
         val fluidData = stack.get(CTDataComponentTypes.TANK_FLUID)
         context.assertTrue(fluidData != null, Component.literal("Pick stack should have fluid data"))
-        context.assertTrue(fluidData!!.variant == water, Component.literal("Variant should be water"))
+        context.assertTrue(fluidData!!.variant.isSameFluid(water), Component.literal("Variant should be water"))
         context.assertTrue(
-            fluidData.amount == FluidConstants.BUCKET * 5,
-            Component.literal("Should have 5 buckets but was ${fluidData.amount / FluidConstants.BUCKET}"),
+            fluidData.amount == FLUID_BUCKET * 5,
+            Component.literal("Should have 5 buckets but was ${fluidData.amount / FLUID_BUCKET}"),
         )
         context.succeed()
     }
 
+    //? if fabric {
     @GameTest
+    //?}
     fun pickStackWithoutIncludeDataHasNoFluid(context: GameTestHelper) {
         val tankPos = BlockPos(0, 2, 0)
         context.placeTank(tankPos)
 
         val state = context.getFluidState()
-        val water = FluidVariant.of(Fluids.WATER)
+        val water = fluidVariantOf(Fluids.WATER)
         val storage = state.getStorage(context.absolutePos(tankPos))!!
-        Transaction.openOuter().use { tx ->
-            storage.insert(water, FluidConstants.BUCKET * 5, tx)
-            tx.commit()
-        }
+        insertFluid(storage, water, FLUID_BUCKET * 5)
 
         val world = context.level
         val absPos = context.absolutePos(tankPos)
@@ -912,7 +920,9 @@ object ConnectedTankGameTest {
         context.succeed()
     }
 
+    //? if fabric {
     @GameTest
+    //?}
     fun pickStackFromEmptyTankHasNoFluidData(context: GameTestHelper) {
         val tankPos = BlockPos(0, 2, 0)
         context.placeTank(tankPos)
@@ -928,7 +938,9 @@ object ConnectedTankGameTest {
         context.succeed()
     }
 
+    //? if fabric {
     @GameTest
+    //?}
     fun pickStackFromConnectedTanksCalculatesShare(context: GameTestHelper) {
         val pos1 = BlockPos(0, 2, 0)
         val pos2 = BlockPos(1, 2, 0)
@@ -938,12 +950,9 @@ object ConnectedTankGameTest {
         context.placeTank(pos3)
 
         val state = context.getFluidState()
-        val water = FluidVariant.of(Fluids.WATER)
+        val water = fluidVariantOf(Fluids.WATER)
         val storage = state.getStorage(context.absolutePos(pos1))!!
-        Transaction.openOuter().use { tx ->
-            storage.insert(water, FluidConstants.BUCKET * 30, tx)
-            tx.commit()
-        }
+        insertFluid(storage, water, FLUID_BUCKET * 30)
 
         val world = context.level
         val absPos2 = context.absolutePos(pos2)
@@ -953,15 +962,17 @@ object ConnectedTankGameTest {
 
         val fluidData = stack.get(CTDataComponentTypes.TANK_FLUID)
         context.assertTrue(fluidData != null, Component.literal("Pick stack should have fluid data"))
-        context.assertTrue(fluidData!!.variant == water, Component.literal("Variant should be water"))
+        context.assertTrue(fluidData!!.variant.isSameFluid(water), Component.literal("Variant should be water"))
         context.assertTrue(
-            fluidData.amount == FluidConstants.BUCKET * 10,
-            Component.literal("Share should be 10 buckets but was ${fluidData.amount / FluidConstants.BUCKET}"),
+            fluidData.amount == FLUID_BUCKET * 10,
+            Component.literal("Share should be 10 buckets but was ${fluidData.amount / FLUID_BUCKET}"),
         )
         context.succeed()
     }
 
+    //? if fabric {
     @GameTest
+    //?}
     fun splitDifferentTiersRecalculatesCapacity(context: GameTestHelper) {
         // BASE - IRON - BASE → IRON を破壊 → BASE 2 つに分断
         val posL = BlockPos(0, 2, 0)
@@ -1004,18 +1015,17 @@ object ConnectedTankGameTest {
         return null
     }
 
+    //? if fabric {
     @GameTest
+    //?}
     fun breakSingleTankRetainsFluidInDrop(context: GameTestHelper) {
         val tankPos = BlockPos(0, 2, 0)
         context.placeTank(tankPos)
 
         val state = context.getFluidState()
-        val water = FluidVariant.of(Fluids.WATER)
+        val water = fluidVariantOf(Fluids.WATER)
         val storage = state.getStorage(context.absolutePos(tankPos))!!
-        Transaction.openOuter().use { tx ->
-            storage.insert(water, FluidConstants.BUCKET * 5, tx)
-            tx.commit()
-        }
+        insertFluid(storage, water, FLUID_BUCKET * 5)
 
         // ブロック破壊 (ドロップ生成あり)
         context.level.destroyBlock(context.absolutePos(tankPos), true)
@@ -1026,26 +1036,25 @@ object ConnectedTankGameTest {
 
         val fluidData = droppedStack!!.get(CTDataComponentTypes.TANK_FLUID)
         context.assertTrue(fluidData != null, Component.literal("Dropped item should have fluid data"))
-        context.assertTrue(fluidData!!.variant == water, Component.literal("Fluid variant should be water"))
+        context.assertTrue(fluidData!!.variant.isSameFluid(water), Component.literal("Fluid variant should be water"))
         context.assertTrue(
-            fluidData.amount == FluidConstants.BUCKET * 5,
-            Component.literal("Fluid amount should be 5 buckets but was ${fluidData.amount / FluidConstants.BUCKET}"),
+            fluidData.amount == FLUID_BUCKET * 5,
+            Component.literal("Fluid amount should be 5 buckets but was ${fluidData.amount / FLUID_BUCKET}"),
         )
         context.succeed()
     }
 
+    //? if fabric {
     @GameTest
+    //?}
     fun breakTankAndReplaceRestoresFluid(context: GameTestHelper) {
         val tankPos = BlockPos(0, 2, 0)
         context.placeTank(tankPos)
 
         val state = context.getFluidState()
-        val water = FluidVariant.of(Fluids.WATER)
+        val water = fluidVariantOf(Fluids.WATER)
         val storage = state.getStorage(context.absolutePos(tankPos))!!
-        Transaction.openOuter().use { tx ->
-            storage.insert(water, FluidConstants.BUCKET * 7, tx)
-            tx.commit()
-        }
+        insertFluid(storage, water, FLUID_BUCKET * 7)
 
         // ブロック破壊
         context.level.destroyBlock(context.absolutePos(tankPos), true)
@@ -1070,15 +1079,17 @@ object ConnectedTankGameTest {
         // 液体が復元されたことを確認
         val restored = state.getStorage(context.absolutePos(tankPos))
         context.assertTrue(restored != null, Component.literal("Restored storage should exist"))
-        context.assertTrue(restored!!.variant == water, Component.literal("Restored variant should be water"))
+        context.assertTrue(restored!!.variant.isSameFluid(water), Component.literal("Restored variant should be water"))
         context.assertTrue(
-            restored.amount == FluidConstants.BUCKET * 7,
-            Component.literal("Restored amount should be 7 buckets but was ${restored.amount / FluidConstants.BUCKET}"),
+            restored.amount == FLUID_BUCKET * 7,
+            Component.literal("Restored amount should be 7 buckets but was ${restored.amount / FLUID_BUCKET}"),
         )
         context.succeed()
     }
 
+    //? if fabric {
     @GameTest
+    //?}
     fun breakMiddleTankRetainsShareInDrop(context: GameTestHelper) {
         // 3 連結タンク (各 32 バケツ容量) に 30 バケツ注入 → 中央を破壊 → 中央のシェア (10 バケツ) がドロップ
         val posL = BlockPos(0, 2, 0)
@@ -1089,12 +1100,9 @@ object ConnectedTankGameTest {
         context.placeTank(posR)
 
         val state = context.getFluidState()
-        val water = FluidVariant.of(Fluids.WATER)
+        val water = fluidVariantOf(Fluids.WATER)
         val storage = state.getStorage(context.absolutePos(posL))!!
-        Transaction.openOuter().use { tx ->
-            storage.insert(water, FluidConstants.BUCKET * 30, tx)
-            tx.commit()
-        }
+        insertFluid(storage, water, FLUID_BUCKET * 30)
 
         // 中央タンクを破壊
         context.level.destroyBlock(context.absolutePos(posM), true)
@@ -1106,8 +1114,8 @@ object ConnectedTankGameTest {
         val fluidData = droppedStack!!.get(CTDataComponentTypes.TANK_FLUID)
         context.assertTrue(fluidData != null, Component.literal("Dropped item should have fluid data"))
         context.assertTrue(
-            fluidData!!.amount == FluidConstants.BUCKET * 10,
-            Component.literal("Middle share should be 10 buckets but was ${fluidData.amount / FluidConstants.BUCKET}"),
+            fluidData!!.amount == FLUID_BUCKET * 10,
+            Component.literal("Middle share should be 10 buckets but was ${fluidData.amount / FLUID_BUCKET}"),
         )
 
         // 残りのタンクは分断されてそれぞれ 10 バケツ
@@ -1115,28 +1123,27 @@ object ConnectedTankGameTest {
         val sR = state.getStorage(context.absolutePos(posR))
         context.assertTrue(sL !== sR, Component.literal("Left and right should be separate groups"))
         context.assertTrue(
-            sL!!.amount == FluidConstants.BUCKET * 10,
-            Component.literal("Left should have 10 buckets but was ${sL.amount / FluidConstants.BUCKET}"),
+            sL!!.amount == FLUID_BUCKET * 10,
+            Component.literal("Left should have 10 buckets but was ${sL.amount / FLUID_BUCKET}"),
         )
         context.assertTrue(
-            sR!!.amount == FluidConstants.BUCKET * 10,
-            Component.literal("Right should have 10 buckets but was ${sR.amount / FluidConstants.BUCKET}"),
+            sR!!.amount == FLUID_BUCKET * 10,
+            Component.literal("Right should have 10 buckets but was ${sR.amount / FLUID_BUCKET}"),
         )
         context.succeed()
     }
 
+    //? if fabric {
     @GameTest
+    //?}
     fun destroyBlockDoesNotLeakStaleFluidData(context: GameTestHelper) {
         val tankPos = BlockPos(0, 2, 0)
         context.placeTank(tankPos)
 
         val state = context.getFluidState()
-        val water = FluidVariant.of(Fluids.WATER)
+        val water = fluidVariantOf(Fluids.WATER)
         val storage = state.getStorage(context.absolutePos(tankPos))!!
-        Transaction.openOuter().use { tx ->
-            storage.insert(water, FluidConstants.BUCKET * 5, tx)
-            tx.commit()
-        }
+        insertFluid(storage, water, FLUID_BUCKET * 5)
 
         context.level.destroyBlock(context.absolutePos(tankPos), true)
 
@@ -1158,18 +1165,17 @@ object ConnectedTankGameTest {
         context.succeed()
     }
 
+    //? if fabric {
     @GameTest
+    //?}
     fun survivalMiningRetainsFluid(context: GameTestHelper) {
         val tankPos = BlockPos(0, 2, 0)
         context.placeTank(tankPos)
 
         val state = context.getFluidState()
-        val water = FluidVariant.of(Fluids.WATER)
+        val water = fluidVariantOf(Fluids.WATER)
         val storage = state.getStorage(context.absolutePos(tankPos))!!
-        Transaction.openOuter().use { tx ->
-            storage.insert(water, FluidConstants.BUCKET * 5, tx)
-            tx.commit()
-        }
+        insertFluid(storage, water, FLUID_BUCKET * 5)
 
         val player = context.makeMockServerPlayerInLevel()
         player.gameMode.changeGameModeForPlayer(GameType.SURVIVAL)
@@ -1180,10 +1186,10 @@ object ConnectedTankGameTest {
 
         val fluidData = droppedStack!!.get(CTDataComponentTypes.TANK_FLUID)
         context.assertTrue(fluidData != null, Component.literal("Survival mining should retain fluid data"))
-        context.assertTrue(fluidData!!.variant == water, Component.literal("Fluid variant should be water"))
+        context.assertTrue(fluidData!!.variant.isSameFluid(water), Component.literal("Fluid variant should be water"))
         context.assertTrue(
-            fluidData.amount == FluidConstants.BUCKET * 5,
-            Component.literal("Fluid amount should be 5 buckets but was ${fluidData.amount / FluidConstants.BUCKET}"),
+            fluidData.amount == FLUID_BUCKET * 5,
+            Component.literal("Fluid amount should be 5 buckets but was ${fluidData.amount / FLUID_BUCKET}"),
         )
         context.succeed()
     }

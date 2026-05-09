@@ -1,6 +1,8 @@
 package net.turtton.connectedtank.block
 
+//? if fabric {
 import net.fabricmc.fabric.api.transfer.v1.fluid.FluidStorage
+//?}
 import net.minecraft.world.level.block.state.BlockBehaviour
 import net.minecraft.world.level.block.Block
 import net.minecraft.core.registries.BuiltInRegistries
@@ -51,6 +53,7 @@ object CTBlocks {
     }
 
     fun init() {
+        //? if fabric {
         FluidStorage.SIDED.registerForBlocks({ world, pos, _, _, _ ->
             val serverWorld = world as? ServerLevel ?: return@registerForBlocks null
             val state = serverWorld.dataStorage.computeIfAbsent(FluidStoragePersistentState.TYPE)
@@ -65,7 +68,33 @@ object CTBlocks {
             }
             storage
         }, *ALL_TANKS.toTypedArray())
+        //?}
     }
+
+    //? if neoforge {
+    /*@net.neoforged.bus.api.SubscribeEvent
+    @JvmStatic
+    fun registerCapabilities(event: net.neoforged.neoforge.capabilities.RegisterCapabilitiesEvent) {
+        event.registerBlock(
+            net.neoforged.neoforge.capabilities.Capabilities.Fluid.BLOCK,
+            { world, pos, state, _, _ ->
+                val serverWorld = world as? ServerLevel ?: return@registerBlock null
+                val persistentState = serverWorld.dataStorage.computeIfAbsent(FluidStoragePersistentState.TYPE)
+                val storage = persistentState.getStorage(pos) ?: run {
+                    val block = state.block as? ConnectedTankBlock
+                    val cap = block?.tier?.bucketCapacity ?: CTServerConfig.instance.tankBucketCapacity
+                    TankFluidStorage(cap).also { persistentState.addStorage(pos, it) }
+                }
+                storage.onChanged = {
+                    persistentState.setDirty()
+                    syncGroupBlockEntities(serverWorld, pos, persistentState)
+                }
+                storage
+            },
+     *ALL_TANKS.toTypedArray(),
+        )
+    }*/
+    //?}
 
     fun syncGroupBlockEntities(
         world: ServerLevel,

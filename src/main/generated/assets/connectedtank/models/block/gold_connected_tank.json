@@ -113,6 +113,7 @@
       ]
     }
   ],
+  "render_type": "minecraft:cutout",
   "textures": {
     "particle": "connectedtank:block/gold_connected_tank_frame",
     "side": "connectedtank:block/gold_connected_tank_side"

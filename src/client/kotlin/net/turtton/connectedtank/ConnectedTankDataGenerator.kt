@@ -1,3 +1,4 @@
+//? if fabric {
 package net.turtton.connectedtank
 
 import com.google.gson.JsonArray
@@ -161,6 +162,7 @@ object ConnectedTankDataGenerator : DataGeneratorEntrypoint {
         private fun generateBaseModel(generator: BlockModelGenerators, tierId: String) {
             val modelId = ResourceLocation.fromNamespaceAndPath("connectedtank", "block/$tierId")
             val json = JsonObject().apply {
+                addProperty("render_type", "minecraft:cutout")
                 add(
                     "textures",
                     JsonObject().apply {
@@ -184,6 +186,7 @@ object ConnectedTankDataGenerator : DataGeneratorEntrypoint {
                         "block/tank_border_${direction}_$stripDir",
                     )
                     val json = JsonObject().apply {
+                        addProperty("render_type", "minecraft:cutout")
                         add(
                             "textures",
                             JsonObject().apply {
@@ -268,6 +271,7 @@ object ConnectedTankDataGenerator : DataGeneratorEntrypoint {
             val modelId = ResourceLocation.fromNamespaceAndPath("connectedtank", "block/${tierId}_item")
             val json = JsonObject().apply {
                 addProperty("parent", "minecraft:block/block")
+                addProperty("render_type", "minecraft:cutout")
                 add(
                     "textures",
                     JsonObject().apply {
@@ -638,3 +642,4 @@ object ConnectedTankDataGenerator : DataGeneratorEntrypoint {
         }
     }
 }
+//?}
