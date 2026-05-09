@@ -63,6 +63,9 @@ object ClientTestRunner {
                 logger.error("Client test failed", e)
             } finally {
                 logger.info(if (success) "Tests PASSED" else "Tests FAILED")
+                // スクリーンショットは非同期で保存されるため、
+                // 書き込み完了を待ってから終了する
+                waitTicks(10)
                 // disconnect() は runTick() 内の glfwWaitEventsTimeout() で
                 // Xvfb 環境下ブロックするため、halt() で強制終了する
                 Runtime.getRuntime().halt(if (success) 0 else 1)

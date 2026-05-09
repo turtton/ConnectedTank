@@ -68,10 +68,9 @@ class ClientTestContext(val minecraft: Minecraft) {
 
     suspend fun runCommand(command: String) {
         runOnServer { srv ->
-            srv.commands.performPrefixedCommand(
-                srv.createCommandSourceStack(),
-                command,
-            )
+            val trimmed = if (command.startsWith("/")) command.substring(1) else command
+            val source = srv.createCommandSourceStack()
+            srv.commands.dispatcher.execute(trimmed, source)
         }
     }
 
