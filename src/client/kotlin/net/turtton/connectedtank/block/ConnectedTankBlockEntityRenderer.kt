@@ -19,7 +19,7 @@ import net.minecraft.client.Minecraft
 //?} else if neoforge {
 import net.minecraft.client.Minecraft
 import net.minecraft.client.renderer.state.CameraRenderState
-import net.minecraft.client.renderer.texture.TextureAtlas
+import net.minecraft.data.AtlasIds
 import net.neoforged.neoforge.client.extensions.common.IClientFluidTypeExtensions
 //?} else {
 import net.minecraft.client.renderer.state.CameraRenderState
@@ -71,7 +71,14 @@ class ConnectedTankBlockEntityRenderer(
         state.sprite = fluidModels.get(entity.fluidVariant.getVariantFluid().defaultFluidState()).stillMaterial().sprite()
         //?} else if neoforge {
         val extensions = IClientFluidTypeExtensions.of(entity.fluidVariant.getVariantFluid())
-        state.sprite = Minecraft.getInstance().atlasManager.getAtlasOrThrow(TextureAtlas.LOCATION_BLOCKS).getSprite(extensions.getStillTexture())
+        val stillTex = extensions.getStillTexture()
+        val atlas = Minecraft.getInstance().atlasManager.getAtlasOrThrow(AtlasIds.BLOCKS)
+        state.sprite = atlas.getSprite(stillTex)
+        if (state.sprite?.contents()?.name()?.path?.contains("missing") == true) {
+            val logger = org.slf4j.LoggerFactory.getLogger("CT-Debug")
+            logger.error("Missing sprite for fluid texture: {}", stillTex)
+            logger.error("Atlas location: {}, sprite count unknown", atlas.location())
+        }
         //?} else {
         state.sprite = FluidVariantRendering.getSprite(entity.fluidVariant)
         //?}

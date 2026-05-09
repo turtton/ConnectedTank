@@ -33,7 +33,7 @@ import org.joml.Vector3fc
 import net.minecraft.client.Minecraft
 //?} else if neoforge {
 import net.minecraft.client.Minecraft
-import net.minecraft.client.renderer.texture.TextureAtlas
+import net.minecraft.data.AtlasIds
 import net.neoforged.neoforge.client.extensions.common.IClientFluidTypeExtensions
 //?}
 
@@ -71,7 +71,8 @@ class ConnectedTankItemRenderer : SpecialModelRenderer<ItemStack> {
         val sprite = fluidModels.get(fluidData.variant.getVariantFluid().defaultFluidState()).stillMaterial().sprite()
         //?} else if neoforge {
         val extensions = IClientFluidTypeExtensions.of(fluidData.variant.getVariantFluid())
-        val sprite = Minecraft.getInstance().atlasManager.getAtlasOrThrow(TextureAtlas.LOCATION_BLOCKS).getSprite(extensions.getStillTexture())
+        val sprite = Minecraft.getInstance().atlasManager.getAtlasOrThrow(AtlasIds.BLOCKS)
+            .getSprite(extensions.getStillTexture())
         //?} else {
         val sprite = FluidVariantRendering.getSprite(fluidData.variant) ?: return
         //?}

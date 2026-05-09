@@ -1,0 +1,13 @@
+{
+	"required": true,
+	"package": "net.turtton.connectedtank.mixin.clienttest",
+	"compatibilityLevel": "JAVA_21",
+	"client": [
+		"MixinGameRenderer",
+		"MixinMinecraftPause",
+		"MixinAccessibilityOnboardingScreen"
+	],
+	"injectors": {
+		"defaultRequire": 0
+	}
+}

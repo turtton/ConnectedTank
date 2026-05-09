@@ -1,0 +1,21 @@
+{
+	"schemaVersion": 1,
+	"id": "connectedtank-clienttest",
+	"version": "1.0.0",
+	"name": "ConnectedTank Client Test",
+	"environment": "client",
+	"entrypoints": {
+		"client": [
+			{
+				"value": "net.turtton.connectedtank.test.ClientTestEntry",
+				"adapter": "kotlin"
+			}
+		]
+	},
+	"mixins": [
+		"connectedtank.clienttest.mixins.json"
+	],
+	"depends": {
+		"connectedtank": "*"
+	}
+}

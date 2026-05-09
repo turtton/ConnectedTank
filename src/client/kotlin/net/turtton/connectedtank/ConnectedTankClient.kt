@@ -65,7 +65,7 @@ object ConnectedTankClient : ClientModInitializer {
     }
 }
 //?} else if neoforge {
-/*@EventBusSubscriber(value = [Dist.CLIENT], modid = "connectedtank", bus = EventBusSubscriber.Bus.MOD)
+/*@EventBusSubscriber(value = [Dist.CLIENT], modid = "connectedtank")
 object ConnectedTankClient {
     init {
         CTClientConfig.load()

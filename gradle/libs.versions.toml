@@ -3,6 +3,7 @@ loader = "0.19.2"
 loom = "1.15.5"
 fabric-kotlin = "1.13.11+kotlin.2.3.21"
 kotlin = "2.3.21"
+kotlinx-coroutines = "1.10.2"
 spotless = "7.2.1"
 mod-publish-plugin = "0.8.4"
 neoforge-mc = "21.11.42"
@@ -12,6 +13,7 @@ kff = "6.2.0"
 [libraries]
 fabric-loader = { module = "net.fabricmc:fabric-loader", version.ref = "loader" }
 fabric-language-kotlin = { module = "net.fabricmc:fabric-language-kotlin", version.ref = "fabric-kotlin" }
+kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "kotlinx-coroutines" }
 
 [plugins]
 fabric-loom = { id = "net.fabricmc.fabric-loom", version.ref = "loom" }
