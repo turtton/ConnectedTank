@@ -97,6 +97,7 @@ jobs:
           CURSEFORGE_ID: ${{ secrets.CURSEFORGE_ID }}
           CURSEFORGE_TOKEN: ${{ secrets.CURSEFORGE_TOKEN }}
       - name: Create GitHub Release
+        shell: bash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAG_NAME: ${{ github.ref_name }}
@@ -104,7 +105,15 @@ jobs:
           MOD_VERSION: ${{ steps.version.outputs.mod_version }}
         run: |
           shopt -s nullglob
-          assets=(versions/*/build/libs/connectedtank-"${MOD_VERSION}"+fabric-*.jar)
+          assets=()
+          for jar in \
+            versions/*/build/libs/connectedtank-"${MOD_VERSION}"+fabric-*.jar \
+            versions/*/build/libs/connectedtank-"${MOD_VERSION}"+neoforge-*.jar; do
+            [[ "$jar" == *-sources.jar ]] && continue
+            [[ "$jar" == *-client-gametest.jar ]] && continue
+            [[ "$jar" == *-client-gametest-remapped.jar ]] && continue
+            assets+=("$jar")
+          done
           if [ ${#assets[@]} -eq 0 ]; then
             echo "::error::No release assets found matching pattern"
             exit 1
